@@ -418,58 +418,15 @@
       return BLOCKED_KEYWORDS.some(kw => q.includes(kw))
     }
 
-    const BLOCKED_PAGE_STYLE = `
-      *{margin:0;padding:0;box-sizing:border-box}
-      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-        background:#f4f5f7;display:flex;align-items:center;justify-content:center;min-height:100vh}
-      .card{background:#fff;border:1px solid #fecaca;border-radius:12px;padding:48px;
-        text-align:center;max-width:440px;box-shadow:0 4px 20px rgba(220,38,38,.08)}
-      .shield{width:64px;height:64px;background:#fef2f2;border-radius:50%;display:flex;
-        align-items:center;justify-content:center;margin:0 auto 20px;border:2px solid #fecaca}
-      h2{font-size:18px;font-weight:700;color:#111827;margin-bottom:10px}
-      .sub{font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:16px}
-      .tag{display:inline-block;font-size:12px;font-weight:600;
-        color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;
-        padding:5px 14px;margin-bottom:20px;word-break:break-all;max-width:100%}
-      .notice{font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;
-        border-radius:8px;padding:10px 14px;margin-bottom:20px;line-height:1.5}
-      .badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
-        color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:5px 12px}
-      .dot{width:6px;height:6px;border-radius:50%;background:#16a34a}
-    `
-
-    function blockedPageHTML(query, type) {
-      const isKeyword = type !== 'dns'
-      const title = isKeyword ? 'Búsqueda bloqueada' : 'Acceso bloqueado'
-      const label = isKeyword ? `"${query}"` : query
-      const reason = isKeyword
-        ? 'Esta búsqueda contiene términos no permitidos en este centro escolar.'
-        : 'Este sitio web está bloqueado por la política de filtrado del centro escolar.'
-      return `data:text/html;charset=utf-8,<!DOCTYPE html>
-<html lang="es"><head><meta charset="UTF-8"><title>${title}</title>
-<style>${BLOCKED_PAGE_STYLE}</style></head>
-<body><div class="card">
-  <div class="shield">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2L3 6.5V12c0 5.25 3.9 10.15 9 11.35C17.1 22.15 21 17.25 21 12V6.5L12 2z" fill="#dc2626"/>
-      <path d="M15 9l-6 6M9 9l6 6" stroke="white" stroke-width="2" stroke-linecap="round"/>
-    </svg>
-  </div>
-  <h2>${title}</h2>
-  <p class="sub">${reason}</p>
-  <div class="tag">${label}</div>
-  <div class="notice">
-    Tu consulta ha sido registrada y notificada al administrador del centro.<br>
-    Si crees que es un error, consulta con tu profesor.
-  </div>
-  <div class="badge"><span class="dot"></span>PenwinSafe — Filtrado activo</div>
-</div></body></html>`
+    function blockedPageURL(term, type) {
+      const params = new URLSearchParams({ term: term || '', type: type || 'keyword' })
+      return `blocked.html?${params.toString()}`
     }
 
-    function domainBlockedHTML(url) {
+    function domainBlockedURL(url) {
       let domain = url
       try { domain = new URL(url).hostname } catch {}
-      return blockedPageHTML(domain, 'dns')
+      return blockedPageURL(domain, 'dns')
     }
 
     let currentTitle = ''
@@ -489,7 +446,7 @@
         const query = extractSearchQuery(normalized)
         if (isBlockedQuery(query)) {
           window.penwinsafe.logBlocked(normalized, 'keyword_filter', query)
-          wv.src = blockedPageHTML(query, 'keyword')
+          wv.src = blockedPageURL(query, 'keyword')
           return
         }
         wv.src = normalized
@@ -511,7 +468,7 @@
         const query = extractSearchQuery(e.url)
         if (isBlockedQuery(query)) {
           window.penwinsafe.logBlocked(e.url, 'keyword_filter', query)
-          wv.src = blockedPageHTML(query, 'keyword')
+          wv.src = blockedPageURL(query, 'keyword')
           return
         }
 
@@ -527,7 +484,7 @@
         const query = extractSearchQuery(e.url)
         if (isBlockedQuery(query)) {
           window.penwinsafe.logBlocked(e.url, 'keyword_filter', query)
-          wv.src = blockedPageHTML(query, 'keyword')
+          wv.src = blockedPageURL(query, 'keyword')
           return
         }
         if (query) window.penwinsafe.logSearch(query, e.url)
@@ -561,7 +518,7 @@
         ]
         if (errorCode === -105 || errorCode === -21) {
           window.penwinsafe.logBlocked(validatedURL, 'dns_filter', null)
-          wv.src = domainBlockedHTML(validatedURL)
+          wv.src = domainBlockedURL(validatedURL)
         }
       })
 
@@ -575,7 +532,7 @@
         if (isBlockedQuery(query)) {
           e.preventDefault()
           window.penwinsafe.logBlocked(e.url, 'keyword_filter', query)
-          wv.src = blockedPageHTML(query, 'keyword')
+          wv.src = blockedPageURL(query, 'keyword')
         }
       })
 
