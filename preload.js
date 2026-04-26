@@ -3,6 +3,11 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('penwinsafe', {
+  // Activation
+  checkActivation: () => ipcRenderer.invoke('check-activation'),
+  activate: (code, name) => ipcRenderer.invoke('activate', code, name),
+
+  // Browser navigation
   navigate: (url) => ipcRenderer.send('navigate', url),
   goBack: () => ipcRenderer.send('go-back'),
   goForward: () => ipcRenderer.send('go-forward'),

@@ -3,8 +3,8 @@
 const { app, BrowserWindow, session, ipcMain } = require('electron')
 const path = require('path')
 const proxy = require('./src/socks-proxy')
+const activation = require('./src/activation')
 
-// Disable GPU sandbox issues and enforce single instance
 app.commandLine.appendSwitch('no-sandbox')
 app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors')
 
@@ -13,7 +13,6 @@ let mainWindow = null
 async function createWindow() {
   await proxy.start()
 
-  // Apply SOCKS5 proxy to ALL sessions — DNS resolved via CleanBrowsing DoH
   await session.defaultSession.setProxy({
     proxyRules: `socks5://${proxy.PROXY_HOST}:${proxy.PROXY_PORT}`
   })
@@ -29,22 +28,29 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
-      // Disable DevTools access for end users
       devTools: false
     }
   })
 
-  // Block context menu to prevent "Inspect Element"
   mainWindow.webContents.on('context-menu', (e) => e.preventDefault())
-
-  // Prevent opening new windows / popups
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  mainWindow.setMenu(null)
 
   mainWindow.loadFile('renderer/index.html')
-
-  // Remove menu bar (hides File/Edit/View/etc.)
-  mainWindow.setMenu(null)
 }
+
+// IPC: check activation state
+ipcMain.handle('check-activation', () => {
+  return {
+    activated: activation.isActivated(),
+    ...activation.loadActivation()
+  }
+})
+
+// IPC: activate device with center code
+ipcMain.handle('activate', async (_, code, name) => {
+  return await activation.activate(code, name)
+})
 
 app.whenReady().then(createWindow)
 

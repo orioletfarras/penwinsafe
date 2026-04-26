@@ -2,81 +2,260 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https:">
   <title>PenwinSafe</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #1a1a2e;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      background: #f4f5f7;
       display: flex;
       flex-direction: column;
       height: 100vh;
       overflow: hidden;
+      color: #111827;
+    }
+
+    /* ── Activation screen ── */
+    #activation-screen {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f4f5f7;
+    }
+
+    .activation-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 40px 48px;
+      width: 420px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+
+    .activation-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .activation-logo svg { flex-shrink: 0; }
+
+    .activation-logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111827;
+      letter-spacing: -0.3px;
+    }
+
+    .activation-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 6px;
+      letter-spacing: -0.3px;
+    }
+
+    .activation-desc {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #111827;
+      background: #ffffff;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 16px;
+      font-family: inherit;
+    }
+
+    .field-input:focus { border-color: #006fff; box-shadow: 0 0 0 3px rgba(0,111,255,0.08); }
+
+    #code-input {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 10px 16px;
+      background: #006fff;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      margin-top: 4px;
+      font-family: inherit;
+    }
+
+    .btn-primary:hover { background: #0062e6; }
+    .btn-primary:disabled { opacity: 0.5; cursor: default; }
+
+    .activation-error {
+      font-size: 12px;
+      color: #dc2626;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .activation-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .dns-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #16a34a;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 20px;
+      padding: 4px 10px;
+      margin-top: 28px;
+    }
+
+    .dns-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #16a34a;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Browser UI ── */
+    #browser-ui {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
     }
 
     #toolbar {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
-      background: #16213e;
-      border-bottom: 1px solid #0f3460;
+      padding: 6px 12px;
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
       -webkit-app-region: drag;
-      min-height: 48px;
+      min-height: 44px;
     }
 
     #toolbar button,
-    #toolbar #address-bar {
+    #toolbar #address-bar,
+    #toolbar .shield-badge {
       -webkit-app-region: no-drag;
     }
 
     .nav-btn {
-      width: 32px;
-      height: 32px;
-      border: none;
+      width: 28px;
+      height: 28px;
+      border: 1px solid #e5e7eb;
       border-radius: 6px;
-      background: #0f3460;
-      color: #e0e0e0;
-      font-size: 16px;
+      background: #ffffff;
+      color: #374151;
+      font-size: 15px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s;
+      transition: background 0.1s;
       flex-shrink: 0;
     }
 
-    .nav-btn:hover { background: #1a5276; }
+    .nav-btn:hover { background: #f9fafb; }
     .nav-btn:disabled { opacity: 0.35; cursor: default; }
 
     #address-bar {
       flex: 1;
-      height: 32px;
+      height: 28px;
       padding: 0 12px;
-      border: 1px solid #0f3460;
-      border-radius: 16px;
-      background: #0d1b2a;
-      color: #e0e0e0;
-      font-size: 13px;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      background: #f9fafb;
+      color: #111827;
+      font-size: 12px;
       outline: none;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, background 0.15s;
     }
 
     #address-bar:focus {
-      border-color: #3498db;
+      border-color: #006fff;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(0,111,255,0.08);
     }
 
-    #shield {
-      font-size: 18px;
+    .shield-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #16a34a;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 20px;
+      padding: 3px 9px;
       flex-shrink: 0;
-      title: 'Navegación segura activa';
+    }
+
+    .shield-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #16a34a;
     }
 
     #loading-bar {
       height: 2px;
-      background: #3498db;
+      background: #006fff;
       width: 0%;
       transition: width 0.2s;
     }
@@ -91,39 +270,71 @@
       100% { width: 100%; opacity: 0; }
     }
 
-    #webview-container {
-      flex: 1;
-      position: relative;
-    }
-
-    webview {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
+    #webview-container { flex: 1; position: relative; }
+    webview { width: 100%; height: 100%; border: none; }
   </style>
 </head>
 <body>
-  <div id="toolbar">
-    <span id="shield" title="Navegación segura activa — CleanBrowsing Family Filter">🛡️</span>
-    <button class="nav-btn" id="btn-back" title="Atrás">‹</button>
-    <button class="nav-btn" id="btn-forward" title="Adelante">›</button>
-    <button class="nav-btn" id="btn-reload" title="Recargar">↻</button>
-    <input type="text" id="address-bar" placeholder="Introduce una dirección web..." spellcheck="false">
+
+  <!-- Activation screen -->
+  <div id="activation-screen">
+    <div class="activation-card">
+      <div class="activation-logo">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <path d="M16 2L4 7V17C4 23.6 9.4 29.7 16 31C22.6 29.7 28 23.6 28 17V7L16 2Z" fill="#006fff"/>
+          <path d="M16 2L4 7V17C4 23.6 9.4 29.7 16 31C22.6 29.7 28 23.6 28 17V7L16 2Z" fill="url(#shield-grad)"/>
+          <path d="M11.5 16.5L14.5 19.5L20.5 13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="shield-grad" x1="16" y1="2" x2="16" y2="31" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#3b82f6"/>
+              <stop offset="1" stop-color="#006fff"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="activation-logo-text">PenwinSafe</span>
+      </div>
+
+      <p class="activation-title">Activar dispositivo</p>
+      <p class="activation-desc">Introduce el código de centro que aparece en el panel de administración de tu colegio para vincular este dispositivo.</p>
+
+      <label class="field-label">Código de centro</label>
+      <input type="text" id="code-input" class="field-input" placeholder="XXX-XXX" maxlength="7" autocomplete="off" spellcheck="false">
+
+      <label class="field-label">Nombre del dispositivo</label>
+      <input type="text" id="name-input" class="field-input" placeholder="Ej: Aula 1 - Puesto 3" autocomplete="off">
+
+      <div class="activation-error" id="activation-error"></div>
+
+      <button class="btn-primary" id="btn-activate">Vincular dispositivo</button>
+
+      <div style="text-align:center">
+        <div class="dns-badge">
+          <span class="dns-dot"></span>
+          DNS seguro activo — CleanBrowsing Family Filter
+        </div>
+      </div>
+    </div>
   </div>
-  <div id="loading-bar"></div>
-  <div id="webview-container">
-    <webview id="wv" src="about:blank" allowpopups="false"></webview>
+
+  <!-- Browser UI (shown after activation) -->
+  <div id="browser-ui">
+    <div id="toolbar">
+      <div class="shield-badge" title="Navegación segura activa — CleanBrowsing Family Filter">
+        <span class="shield-dot"></span>
+        Seguro
+      </div>
+      <button class="nav-btn" id="btn-back" title="Atrás">&#8249;</button>
+      <button class="nav-btn" id="btn-forward" title="Adelante">&#8250;</button>
+      <button class="nav-btn" id="btn-reload" title="Recargar">&#8635;</button>
+      <input type="text" id="address-bar" placeholder="Introduce una dirección web..." spellcheck="false">
+    </div>
+    <div id="loading-bar"></div>
+    <div id="webview-container">
+      <webview id="wv" src="about:blank" allowpopups="false"></webview>
+    </div>
   </div>
 
   <script>
-    const wv = document.getElementById('wv')
-    const addressBar = document.getElementById('address-bar')
-    const btnBack = document.getElementById('btn-back')
-    const btnForward = document.getElementById('btn-forward')
-    const btnReload = document.getElementById('btn-reload')
-    const loadingBar = document.getElementById('loading-bar')
-
     const BLOCKED_SCHEMES = ['chrome:', 'chrome-extension:', 'devtools:']
     const HOME = 'https://www.google.com'
 
@@ -135,54 +346,121 @@
       return `https://www.google.com/search?q=${encodeURIComponent(input)}`
     }
 
-    function navigate(url) {
-      const normalized = normalizeUrl(url)
-      const scheme = normalized.split(':')[0] + ':'
-      if (BLOCKED_SCHEMES.includes(scheme.toLowerCase())) return
-      wv.src = normalized
+    function showBrowser() {
+      document.getElementById('activation-screen').style.display = 'none'
+      document.getElementById('browser-ui').style.display = 'flex'
+      initBrowser()
     }
 
-    addressBar.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') navigate(addressBar.value)
-    })
+    function initBrowser() {
+      const wv = document.getElementById('wv')
+      const addressBar = document.getElementById('address-bar')
+      const btnBack = document.getElementById('btn-back')
+      const btnForward = document.getElementById('btn-forward')
+      const btnReload = document.getElementById('btn-reload')
+      const loadingBar = document.getElementById('loading-bar')
 
-    btnBack.addEventListener('click', () => wv.canGoBack() && wv.goBack())
-    btnForward.addEventListener('click', () => wv.canGoForward() && wv.goForward())
-    btnReload.addEventListener('click', () => wv.reload())
-
-    wv.addEventListener('did-navigate', (e) => {
-      addressBar.value = e.url
-      btnBack.disabled = !wv.canGoBack()
-      btnForward.disabled = !wv.canGoForward()
-    })
-
-    wv.addEventListener('did-navigate-in-page', (e) => {
-      addressBar.value = e.url
-    })
-
-    wv.addEventListener('page-title-updated', (e) => {
-      document.title = `${e.title} — PenwinSafe`
-    })
-
-    wv.addEventListener('did-start-loading', () => {
-      loadingBar.classList.add('active')
-    })
-
-    wv.addEventListener('did-stop-loading', () => {
-      loadingBar.classList.remove('active')
-      loadingBar.style.width = '0%'
-    })
-
-    // Block any attempt to navigate to restricted pages
-    wv.addEventListener('will-navigate', (e) => {
-      const url = e.url || ''
-      const scheme = url.split(':')[0].toLowerCase() + ':'
-      if (BLOCKED_SCHEMES.includes(scheme)) {
-        e.preventDefault()
+      function navigate(url) {
+        const normalized = normalizeUrl(url)
+        const scheme = normalized.split(':')[0] + ':'
+        if (BLOCKED_SCHEMES.includes(scheme.toLowerCase())) return
+        wv.src = normalized
       }
-    })
 
-    navigate(HOME)
+      addressBar.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') navigate(addressBar.value)
+      })
+
+      btnBack.addEventListener('click', () => wv.canGoBack() && wv.goBack())
+      btnForward.addEventListener('click', () => wv.canGoForward() && wv.goForward())
+      btnReload.addEventListener('click', () => wv.reload())
+
+      wv.addEventListener('did-navigate', (e) => {
+        addressBar.value = e.url
+        btnBack.disabled = !wv.canGoBack()
+        btnForward.disabled = !wv.canGoForward()
+      })
+
+      wv.addEventListener('did-navigate-in-page', (e) => {
+        addressBar.value = e.url
+      })
+
+      wv.addEventListener('page-title-updated', (e) => {
+        document.title = `${e.title} — PenwinSafe`
+      })
+
+      wv.addEventListener('did-start-loading', () => {
+        loadingBar.classList.add('active')
+      })
+
+      wv.addEventListener('did-stop-loading', () => {
+        loadingBar.classList.remove('active')
+        loadingBar.style.width = '0%'
+      })
+
+      wv.addEventListener('will-navigate', (e) => {
+        const scheme = (e.url || '').split(':')[0].toLowerCase() + ':'
+        if (BLOCKED_SCHEMES.includes(scheme)) e.preventDefault()
+      })
+
+      navigate(HOME)
+    }
+
+    // ── Activation logic ────────────────────────────────────
+    async function init() {
+      const state = await window.penwinsafe.checkActivation()
+      if (state.activated) {
+        showBrowser()
+        return
+      }
+
+      // Format code input as XXX-XXX automatically
+      const codeInput = document.getElementById('code-input')
+      codeInput.addEventListener('input', () => {
+        let v = codeInput.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6)
+        if (v.length > 3) v = v.slice(0, 3) + '-' + v.slice(3)
+        codeInput.value = v
+      })
+
+      document.getElementById('btn-activate').addEventListener('click', doActivate)
+      codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doActivate() })
+    }
+
+    async function doActivate() {
+      const code = document.getElementById('code-input').value.trim()
+      const name = document.getElementById('name-input').value.trim()
+      const btn = document.getElementById('btn-activate')
+      const errEl = document.getElementById('activation-error')
+
+      if (code.replace('-', '').length < 6) {
+        showError('Introduce el código completo (XXX-XXX)')
+        return
+      }
+
+      btn.disabled = true
+      btn.innerHTML = '<span class="activation-spinner"></span>Verificando...'
+      errEl.style.display = 'none'
+
+      const result = await window.penwinsafe.activate(code, name)
+
+      if (result.ok) {
+        btn.innerHTML = '✓ Vinculado correctamente'
+        btn.style.background = '#16a34a'
+        setTimeout(showBrowser, 800)
+      } else {
+        showError(result.error || 'Error desconocido')
+        btn.disabled = false
+        btn.innerHTML = 'Vincular dispositivo'
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('activation-error')
+      el.textContent = msg
+      el.style.display = 'block'
+    }
+
+    init()
   </script>
 </body>
 </html>
