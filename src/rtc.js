@@ -99,8 +99,9 @@ async function pollScreenshots(deviceId) {
 
     console.log('[rtc] screenshot uploaded')
   } catch (e) {
+    console.error('[rtc] screenshot error:', e.message)
     if (activeScreenshotId) {
-      await supabase.from('screenshot_requests').update({ status: 'error' }).eq('id', activeScreenshotId).catch(() => {})
+      try { await supabase.from('screenshot_requests').update({ status: 'error' }).eq('id', activeScreenshotId) } catch {}
     }
   }
 }
