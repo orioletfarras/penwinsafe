@@ -133,14 +133,14 @@ onMounted(async () => {
 
   const { data: admin } = await supabase
     .from('admin_users')
-    .select('org_id, organizations(id, name, slug)')
+    .select('org_id, organizations(id, name, slug, center_code)')
     .eq('id', user.id)
     .single()
 
   if (admin?.organizations) {
     orgName.value    = admin.organizations.name
     orgId.value      = admin.organizations.id
-    centerCode.value = admin.organizations.slug.toUpperCase().replace(/-/g, '')
+    centerCode.value = admin.organizations.center_code || '—'
   }
 })
 
