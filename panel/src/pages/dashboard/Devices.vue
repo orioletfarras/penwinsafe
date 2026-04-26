@@ -275,33 +275,57 @@
 
   <!-- Modal vista en vivo -->
   <Teleport to="body">
-    <div v-if="liveDevice" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.4)">
-      <div class="w-full max-w-lg rounded overflow-hidden" style="background:#ffffff;border:1px solid #e5e7eb;box-shadow:0 10px 25px rgba(0,0,0,0.1)">
-        <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid #e5e7eb">
+    <div v-if="liveDevice" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7)">
+      <div class="rounded overflow-hidden flex flex-col" style="background:#111827;border:1px solid #374151;box-shadow:0 20px 60px rgba(0,0,0,0.5);width:900px;max-width:95vw">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style="border-bottom:1px solid #374151">
           <div class="flex items-center gap-2.5">
             <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#16a34a"></span>
-            <span class="text-[13px] font-semibold" style="color:#111827">{{ liveDevice.name }}</span>
-            <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" style="background:#eff6ff;color:#006fff;border:1px solid #bfdbfe">En vivo</span>
+            <span class="text-[13px] font-semibold" style="color:#f9fafb">{{ liveDevice.name }}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" style="background:#064e3b;color:#34d399;border:1px solid #065f46">En vivo</span>
+            <span class="text-[10px]" style="color:#6b7280">{{ liveDevice.ip_address }}</span>
           </div>
-          <button @click="liveDevice = null"
+          <button @click="closeLive"
             class="w-6 h-6 flex items-center justify-center rounded transition-colors"
-            style="color:#6b7280"
-            onmouseenter="this.style.background='#f9fafb'"
-            onmouseleave="this.style.background='transparent'">
+            style="color:#9ca3af"
+            onmouseenter="this.style.color='#f9fafb'"
+            onmouseleave="this.style.color='#9ca3af'">
             <XMarkIcon class="w-4 h-4" />
           </button>
         </div>
-        <div class="p-8 text-center space-y-4" style="min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="w-10 h-10 rounded flex items-center justify-center mx-auto" style="background:#eff6ff">
-            <SignalIcon class="w-5 h-5" style="color:#006fff" />
+
+        <!-- Video area -->
+        <div style="position:relative;background:#000;aspect-ratio:16/9">
+          <video ref="liveVideoEl" autoplay playsinline muted
+            style="width:100%;height:100%;display:block;object-fit:contain">
+          </video>
+
+          <!-- Waiting overlay -->
+          <div v-if="liveStatus !== 'streaming'"
+            class="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            <div v-if="liveStatus === 'connecting'" class="flex flex-col items-center gap-2">
+              <svg class="animate-spin w-6 h-6" style="color:#006fff" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+              <p class="text-[12px]" style="color:#9ca3af">Conectando con {{ liveDevice.name }}...</p>
+            </div>
+            <div v-else-if="liveStatus === 'error'" class="flex flex-col items-center gap-2">
+              <p class="text-[13px] font-semibold" style="color:#f87171">No se pudo conectar</p>
+              <p class="text-[11px]" style="color:#6b7280">El dispositivo debe estar online y con la app abierta</p>
+              <button @click="startLive(liveDevice)"
+                class="text-[11px] font-medium px-3 py-1.5 rounded mt-1"
+                style="background:#006fff;color:#fff">
+                Reintentar
+              </button>
+            </div>
           </div>
-          <div>
-            <p class="text-[13px] font-semibold mb-1" style="color:#111827">Vista en vivo disponible próximamente</p>
-            <p class="text-[12px] leading-relaxed" style="color:#6b7280">La conexión WebRTC está en desarrollo.<br>Podrás ver la pantalla del alumno en tiempo real.</p>
-          </div>
-          <div class="text-[11px] px-3 py-2 rounded font-mono" style="background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb">
-            {{ liveDevice.name }} &middot; {{ liveDevice.ip_address }} &middot; {{ liveDevice.os_info }}
-          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-4 py-2 flex items-center justify-between flex-shrink-0" style="border-top:1px solid #374151">
+          <span class="text-[10px] font-mono" style="color:#4b5563">{{ liveDevice.os_info }}</span>
+          <span class="text-[10px]" style="color:#4b5563">WebRTC · PenwinSafe</span>
         </div>
       </div>
     </div>
@@ -309,7 +333,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { supabase } from '../../lib/supabase'
 import { MagnifyingGlassIcon, ComputerDesktopIcon, XMarkIcon, SignalIcon, NoSymbolIcon, UserGroupIcon } from '@heroicons/vue/24/outline'
 
@@ -318,6 +342,10 @@ const groups         = ref([])
 const search         = ref('')
 const filterStatus   = ref('')
 const liveDevice     = ref(null)
+const liveVideoEl    = ref(null)
+const liveStatus     = ref('connecting') // connecting | streaming | error
+const livePc         = ref(null)
+const liveChannel    = ref(null)
 const selectedDevice = ref(null)
 const activeTab      = ref('urls')
 const loadingDetail  = ref(false)
@@ -400,7 +428,65 @@ async function toggleLock(device) {
   device.status = newStatus
 }
 
-function watchLive(d) { liveDevice.value = d }
+function watchLive(d) { startLive(d) }
+
+async function startLive(d) {
+  closeLive()
+  liveDevice.value = d
+  liveStatus.value = 'connecting'
+
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
+  livePc.value = pc
+
+  pc.ontrack = async (e) => {
+    liveStatus.value = 'streaming'
+    await nextTick()
+    if (liveVideoEl.value) liveVideoEl.value.srcObject = e.streams[0]
+  }
+
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate) {
+      liveChannel.value?.send({ type: 'broadcast', event: 'ice-panel', payload: { candidate: candidate.toJSON() } })
+    }
+  }
+
+  // Timeout → error if no stream in 15s
+  const timeout = setTimeout(() => {
+    if (liveStatus.value === 'connecting') liveStatus.value = 'error'
+  }, 15000)
+
+  const ch = supabase.channel(`device-rtc:${d.id}`, { config: { broadcast: { ack: false } } })
+  liveChannel.value = ch
+
+  ch.on('broadcast', { event: 'offer' }, async ({ payload }) => {
+    clearTimeout(timeout)
+    try {
+      await pc.setRemoteDescription({ type: 'offer', sdp: payload.sdp })
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+      ch.send({ type: 'broadcast', event: 'answer', payload: { sdp: answer.sdp } })
+    } catch (e) { liveStatus.value = 'error' }
+  })
+
+  ch.on('broadcast', { event: 'ice-device' }, ({ payload }) => {
+    pc.addIceCandidate(payload.candidate).catch(() => {})
+  })
+
+  ch.subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      ch.send({ type: 'broadcast', event: 'request-stream', payload: {} })
+    }
+  })
+}
+
+function closeLive() {
+  livePc.value?.close()
+  livePc.value = null
+  if (liveChannel.value) { supabase.removeChannel(liveChannel.value); liveChannel.value = null }
+  if (liveVideoEl.value) liveVideoEl.value.srcObject = null
+  liveDevice.value = null
+  liveStatus.value = 'connecting'
+}
 
 function reasonLabel(r) {
   return { dns_filter: 'DNS', keyword_filter: 'Palabra clave', blacklist: 'Lista negra', schedule: 'Horario', kiosk: 'Kiosco' }[r] || r

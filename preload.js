@@ -20,5 +20,12 @@ contextBridge.exposeInMainWorld('penwinsafe', {
   reload: () => ipcRenderer.send('reload'),
   onUrlChange: (cb) => ipcRenderer.on('url-changed', (_, url) => cb(url)),
   onTitleChange: (cb) => ipcRenderer.on('title-changed', (_, title) => cb(title)),
-  onLoadingChange: (cb) => ipcRenderer.on('loading-changed', (_, loading) => cb(loading))
+  onLoadingChange: (cb) => ipcRenderer.on('loading-changed', (_, loading) => cb(loading)),
+
+  // WebRTC live view (signaling via Supabase Realtime in main process)
+  onRtcStart:     (cb) => ipcRenderer.on('rtc-start',       ()        => cb()),
+  onRtcRemoteDesc:(cb) => ipcRenderer.on('rtc-remote-desc', (_, sdp)  => cb(sdp)),
+  onRtcRemoteIce: (cb) => ipcRenderer.on('rtc-remote-ice',  (_, c)    => cb(c)),
+  rtcSendOffer:   (sdp)       => ipcRenderer.send('rtc-send-offer', sdp),
+  rtcSendIce:     (candidate) => ipcRenderer.send('rtc-send-ice', candidate),
 })

@@ -351,6 +351,39 @@
       document.getElementById('browser-ui').style.display = 'flex'
       await refreshBlocklist()
       initBrowser()
+      initRtc()
+    }
+
+    // ── WebRTC live view (screen share to admin panel) ───────
+    let rtcPc = null
+
+    function initRtc() {
+      window.penwinsafe.onRtcStart(async () => {
+        try {
+          if (rtcPc) { rtcPc.close(); rtcPc = null }
+
+          const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+
+          rtcPc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
+          stream.getTracks().forEach(t => rtcPc.addTrack(t, stream))
+
+          rtcPc.onicecandidate = ({ candidate }) => {
+            if (candidate) window.penwinsafe.rtcSendIce(candidate.toJSON())
+          }
+
+          window.penwinsafe.onRtcRemoteDesc(async sdp => {
+            await rtcPc.setRemoteDescription({ type: 'answer', sdp })
+          })
+
+          window.penwinsafe.onRtcRemoteIce(async candidate => {
+            try { await rtcPc.addIceCandidate(candidate) } catch {}
+          })
+
+          const offer = await rtcPc.createOffer()
+          await rtcPc.setLocalDescription(offer)
+          window.penwinsafe.rtcSendOffer(offer.sdp)
+        } catch (e) { console.error('[rtc] error:', e) }
+      })
     }
 
     // ── Keyword blocklist — built-in defaults ───────────────

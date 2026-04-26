@@ -1,10 +1,11 @@
 'use strict'
 
-const { app, BrowserWindow, session, ipcMain, nativeImage } = require('electron')
+const { app, BrowserWindow, session, ipcMain, nativeImage, desktopCapturer } = require('electron')
 const path = require('path')
 const proxy = require('./src/socks-proxy')
 const activation = require('./src/activation')
 const telemetry = require('./src/telemetry')
+const rtc = require('./src/rtc')
 
 app.setName('PenwinSafe')
 
@@ -22,6 +23,12 @@ async function createWindow() {
 
   await session.defaultSession.setProxy({
     proxyRules: `socks5://${proxy.PROXY_HOST}:${proxy.PROXY_PORT}`
+  })
+
+  // Auto-grant screen capture for WebRTC live view
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    const sources = await desktopCapturer.getSources({ types: ['screen'] })
+    callback({ video: sources[0] || null })
   })
 
   mainWindow = new BrowserWindow({
@@ -45,6 +52,10 @@ async function createWindow() {
   mainWindow.setMenu(null)
 
   mainWindow.loadFile('renderer/index.html')
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    rtc.init(mainWindow)
+  })
 }
 
 // IPC: check activation state
@@ -57,7 +68,9 @@ ipcMain.handle('check-activation', () => {
 
 // IPC: activate device with center code
 ipcMain.handle('activate', async (_, code, name) => {
-  return await activation.activate(code, name)
+  const result = await activation.activate(code, name)
+  if (result.ok) rtc.init(mainWindow)
+  return result
 })
 
 // IPC: telemetry
@@ -65,6 +78,10 @@ ipcMain.handle('log-url',          (_, url, title)        => telemetry.logUrl(ur
 ipcMain.handle('log-search',       (_, query, url)         => telemetry.logSearch(query, url))
 ipcMain.handle('log-blocked',      (_, url, reason, query) => telemetry.logBlocked(url, reason, query))
 ipcMain.handle('get-filter-config',()                      => telemetry.getFilterConfig())
+
+// IPC: WebRTC signaling
+ipcMain.on('rtc-send-offer', (_, sdp) => rtc.sendOffer(sdp))
+ipcMain.on('rtc-send-ice',   (_, candidate) => rtc.sendIce(candidate))
 
 // Heartbeat every 30s while app is running
 setInterval(() => telemetry.heartbeat(), 30000)
