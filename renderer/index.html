@@ -394,11 +394,20 @@
       try {
         const u = new URL(url)
         const h = u.hostname.replace('www.', '')
-        if (h === 'google.com' || h.startsWith('google.')) return u.searchParams.get('q')
-        if (h === 'bing.com') return u.searchParams.get('q')
-        if (h === 'duckduckgo.com') return u.searchParams.get('q')
-        if (h === 'youtube.com') return u.searchParams.get('search_query') || u.searchParams.get('q')
-        if (h === 'yahoo.com') return u.searchParams.get('p')
+        if (h.startsWith('google.'))                       return u.searchParams.get('q')
+        if (h === 'bing.com')                              return u.searchParams.get('q')
+        if (h === 'duckduckgo.com')                        return u.searchParams.get('q')
+        if (h === 'youtube.com')                           return u.searchParams.get('search_query') || u.searchParams.get('q')
+        if (h === 'yahoo.com' || h.startsWith('yahoo.'))  return u.searchParams.get('p')
+        if (h === 'ecosia.org')                            return u.searchParams.get('q')
+        if (h === 'search.brave.com')                      return u.searchParams.get('q')
+        if (h === 'qwant.com')                             return u.searchParams.get('q')
+        if (h === 'startpage.com')                         return u.searchParams.get('q')
+        if (h === 'ask.com')                               return u.searchParams.get('q')
+        if (h.startsWith('yandex.'))                       return u.searchParams.get('text')
+        if (h === 'baidu.com')                             return u.searchParams.get('wd') || u.searchParams.get('word')
+        if (h === 'perplexity.ai')                         return u.searchParams.get('q')
+        if (h === 'you.com')                               return u.searchParams.get('q')
       } catch {}
       return null
     }

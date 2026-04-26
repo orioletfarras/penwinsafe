@@ -37,7 +37,8 @@
       "Bash(/usr/libexec/PlistBuddy -c 'Print :CFBundleName' /Users/oriol/penwinsafe/node_modules/electron/dist/Electron.app/Contents/Info.plist)",
       "Bash(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' /Users/oriol/penwinsafe/node_modules/electron/dist/Electron.app/Contents/Info.plist)",
       "Bash(PGPASSWORD=7fwFu8siIop0JcsX psql \"postgresql://postgres.usmpicfqqiowdlridybh:7fwFu8siIop0JcsX@aws-0-eu-central-1.pooler.supabase.com:6543/postgres\")",
-      "Bash(npx supabase *)"
+      "Bash(npx supabase *)",
+      "Bash(supabase secrets *)"
     ]
   }
 }

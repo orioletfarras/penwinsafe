@@ -24,11 +24,20 @@ function extractDomain(url) {
 function extractEngine(url) {
   try {
     const h = new URL(url).hostname.replace('www.', '')
-    if (h.startsWith('google.'))  return 'google'
-    if (h === 'bing.com')         return 'bing'
-    if (h === 'duckduckgo.com')   return 'duckduckgo'
-    if (h === 'youtube.com')      return 'youtube'
-    if (h === 'yahoo.com')        return 'yahoo'
+    if (h.startsWith('google.'))    return 'google'
+    if (h === 'bing.com')           return 'bing'
+    if (h === 'duckduckgo.com')     return 'duckduckgo'
+    if (h === 'youtube.com')        return 'youtube'
+    if (h === 'yahoo.com' || h.startsWith('yahoo.')) return 'yahoo'
+    if (h === 'ecosia.org')         return 'ecosia'
+    if (h === 'brave.com' || h === 'search.brave.com') return 'brave'
+    if (h === 'qwant.com')          return 'qwant'
+    if (h === 'startpage.com')      return 'startpage'
+    if (h === 'ask.com')            return 'ask'
+    if (h === 'yandex.com' || h.startsWith('yandex.')) return 'yandex'
+    if (h === 'baidu.com')          return 'baidu'
+    if (h === 'perplexity.ai')      return 'perplexity'
+    if (h === 'you.com')            return 'you'
   } catch {}
   return 'other'
 }
