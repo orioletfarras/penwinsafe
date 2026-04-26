@@ -1,6 +1,7 @@
 'use strict'
 
 const { createClient } = require('@supabase/supabase-js')
+const { desktopCapturer } = require('electron')
 const activation = require('./activation')
 
 const SUPABASE_URL = 'https://usmpicfqqiowdlridybh.supabase.co'
@@ -25,8 +26,12 @@ function init(win) {
   console.log('[rtc] REST polling started for device', deviceId)
 
   if (pollInterval) clearInterval(pollInterval)
-  pollInterval = setInterval(() => poll(deviceId), 2000)
+  pollInterval = setInterval(() => {
+    poll(deviceId)
+    pollScreenshots(deviceId)
+  }, 2000)
   poll(deviceId)
+  pollScreenshots(deviceId)
 }
 
 async function poll(deviceId) {
@@ -59,6 +64,45 @@ async function submitAnswer(sessionId, answerSdp) {
 
 function closeSession() {
   activeSessionId = null
+}
+
+let activeScreenshotId = null
+
+async function pollScreenshots(deviceId) {
+  try {
+    const { data } = await supabase
+      .from('screenshot_requests')
+      .select('id')
+      .eq('device_id', deviceId)
+      .eq('status', 'pending')
+      .order('requested_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!data || data.id === activeScreenshotId) return
+    activeScreenshotId = data.id
+    console.log('[rtc] screenshot request', data.id)
+
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 }
+    })
+
+    const png = sources[0]?.thumbnail?.toPNG()
+    if (!png) throw new Error('no screen source')
+
+    await supabase.from('screenshot_requests').update({
+      status: 'done',
+      image_data: png.toString('base64'),
+      taken_at: new Date().toISOString(),
+    }).eq('id', data.id)
+
+    console.log('[rtc] screenshot uploaded')
+  } catch (e) {
+    if (activeScreenshotId) {
+      await supabase.from('screenshot_requests').update({ status: 'error' }).eq('id', activeScreenshotId).catch(() => {})
+    }
+  }
 }
 
 module.exports = { init, submitAnswer, closeSession }

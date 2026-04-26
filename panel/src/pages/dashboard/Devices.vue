@@ -79,10 +79,15 @@
               <td class="px-4 py-2 text-[11px] font-mono" style="color:#9ca3af">{{ d.ip_address || '—' }}</td>
               <td class="px-4 py-2" @click.stop>
                 <div class="flex items-center justify-end gap-1.5">
+                  <button v-if="d.status === 'online'" @click="takeScreenshot(d)"
+                    class="text-[11px] font-medium px-2.5 py-1 rounded transition-colors"
+                    style="color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0">
+                    Screenshot
+                  </button>
                   <button v-if="d.status === 'online'" @click="watchLive(d)"
                     class="text-[11px] font-medium px-2.5 py-1 rounded transition-colors"
                     style="color:#006fff;background:#ffffff;border:1px solid #006fff">
-                    Ver en vivo
+                    En vivo
                   </button>
                   <button @click="toggleLock(d)"
                     class="text-[11px] font-medium px-2.5 py-1 rounded transition-colors"
@@ -273,6 +278,42 @@
 
   </div>
 
+  <!-- Modal screenshot -->
+  <Teleport to="body">
+    <div v-if="screenshotModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7)">
+      <div class="rounded overflow-hidden flex flex-col" style="background:#111827;border:1px solid #374151;box-shadow:0 20px 60px rgba(0,0,0,0.5);width:900px;max-width:95vw">
+        <div class="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style="border-bottom:1px solid #374151">
+          <div class="flex items-center gap-2.5">
+            <span class="text-[13px] font-semibold" style="color:#f9fafb">{{ screenshotModal.deviceName }}</span>
+            <span class="text-[10px]" style="color:#6b7280">{{ screenshotModal.takenAt }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button v-if="screenshotModal.image" @click="downloadScreenshot"
+              class="text-[11px] font-medium px-2.5 py-1 rounded"
+              style="background:#006fff;color:#fff">
+              Descargar
+            </button>
+            <button @click="screenshotModal = null"
+              class="w-6 h-6 flex items-center justify-center rounded"
+              style="color:#9ca3af" onmouseenter="this.style.color='#f9fafb'" onmouseleave="this.style.color='#9ca3af'">
+              <XMarkIcon class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <div style="background:#000;min-height:200px;display:flex;align-items:center;justify-content:center">
+          <img v-if="screenshotModal.image" :src="screenshotModal.image" style="max-width:100%;max-height:70vh;display:block" />
+          <div v-else class="flex flex-col items-center gap-2 p-8">
+            <svg class="animate-spin w-6 h-6" style="color:#006fff" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            <p class="text-[12px]" style="color:#9ca3af">Capturando pantalla...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
   <!-- Modal vista en vivo -->
   <Teleport to="body">
     <div v-if="liveDevice" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7)">
@@ -342,7 +383,8 @@ const groups         = ref([])
 const search         = ref('')
 const filterStatus   = ref('')
 const liveDevice     = ref(null)
-const liveVideoEl    = ref(null)
+const liveVideoEl      = ref(null)
+const screenshotModal  = ref(null)
 const liveStatus     = ref('connecting') // connecting | streaming | error
 const livePc         = ref(null)
 const liveChannel    = ref(null)
@@ -429,6 +471,45 @@ async function toggleLock(device) {
 }
 
 function watchLive(d) { startLive(d) }
+
+async function takeScreenshot(d) {
+  screenshotModal.value = { deviceName: d.name, takenAt: 'Capturando...', image: null, reqId: null }
+
+  const { data: req, error } = await supabase
+    .from('screenshot_requests')
+    .insert({ device_id: d.id, status: 'pending' })
+    .select('id').single()
+
+  if (error || !req) { screenshotModal.value = null; return }
+  screenshotModal.value.reqId = req.id
+
+  // Poll for result (max 30s)
+  let tries = 0
+  const iv = setInterval(async () => {
+    tries++
+    const { data } = await supabase
+      .from('screenshot_requests')
+      .select('status, image_data, taken_at')
+      .eq('id', req.id).single()
+
+    if (data?.status === 'done' && data.image_data) {
+      clearInterval(iv)
+      screenshotModal.value.image = `data:image/png;base64,${data.image_data}`
+      screenshotModal.value.takenAt = new Date(data.taken_at).toLocaleTimeString('es-ES')
+    } else if (data?.status === 'error' || tries > 15) {
+      clearInterval(iv)
+      if (!screenshotModal.value.image) screenshotModal.value = null
+    }
+  }, 2000)
+}
+
+function downloadScreenshot() {
+  if (!screenshotModal.value?.image) return
+  const a = document.createElement('a')
+  a.href = screenshotModal.value.image
+  a.download = `screenshot-${screenshotModal.value.deviceName}-${Date.now()}.png`
+  a.click()
+}
 
 async function startLive(d) {
   closeLive()
