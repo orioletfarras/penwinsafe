@@ -106,7 +106,8 @@ import { supabase } from '../../lib/supabase'
 import Logo from '../../components/Logo.vue'
 import {
   Squares2X2Icon, ComputerDesktopIcon, BellIcon, DocumentTextIcon,
-  Cog6ToothIcon, ArrowRightStartOnRectangleIcon, ChevronUpDownIcon, ChevronRightIcon
+  Cog6ToothIcon, ArrowRightStartOnRectangleIcon, ChevronRightIcon,
+  UserGroupIcon, ShieldExclamationIcon
 } from '@heroicons/vue/24/outline'
 
 // ── NavItem component ──────────────────────────────────────────────────────
@@ -156,6 +157,8 @@ const mainNav = computed(() => [
   { to: '/dashboard/alerts',  label: 'Alertas',      icon: BellIcon, badge: alertCount.value || undefined },
 ])
 const mgmtNav = [
+  { to: '/dashboard/groups',   label: 'Clases',        icon: UserGroupIcon },
+  { to: '/dashboard/filters',  label: 'Filtros',       icon: ShieldExclamationIcon },
   { to: '/dashboard/reports',  label: 'Informes',      icon: DocumentTextIcon },
   { to: '/dashboard/settings', label: 'Configuración', icon: Cog6ToothIcon },
 ]
@@ -164,6 +167,8 @@ const pageMap = {
   '/dashboard':          'Resumen',
   '/dashboard/devices':  'Dispositivos',
   '/dashboard/alerts':   'Alertas',
+  '/dashboard/groups':   'Clases',
+  '/dashboard/filters':  'Filtros',
   '/dashboard/reports':  'Informes',
   '/dashboard/settings': 'Configuración',
 }

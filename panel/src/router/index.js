@@ -11,9 +11,11 @@ const routes = [
     children: [
       { path: '',         name: 'dashboard', component: () => import('../pages/dashboard/Overview.vue') },
       { path: 'devices',  name: 'devices',   component: () => import('../pages/dashboard/Devices.vue') },
+      { path: 'groups',   name: 'groups',    component: () => import('../pages/dashboard/Groups.vue') },
       { path: 'alerts',   name: 'alerts',    component: () => import('../pages/dashboard/Alerts.vue') },
       { path: 'reports',  name: 'reports',   component: () => import('../pages/dashboard/Reports.vue') },
       { path: 'settings', name: 'settings',  component: () => import('../pages/dashboard/Settings.vue') },
+      { path: 'filters',  name: 'filters',   component: () => import('../pages/dashboard/Filters.vue') },
     ]
   },
 ]

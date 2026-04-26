@@ -8,9 +8,10 @@ contextBridge.exposeInMainWorld('penwinsafe', {
   activate: (code, name) => ipcRenderer.invoke('activate', code, name),
 
   // Telemetry
-  logUrl:     (url, title)         => ipcRenderer.invoke('log-url', url, title),
-  logSearch:  (query, url)          => ipcRenderer.invoke('log-search', query, url),
-  logBlocked: (url, reason, query)  => ipcRenderer.invoke('log-blocked', url, reason, query),
+  logUrl:          (url, title)        => ipcRenderer.invoke('log-url', url, title),
+  logSearch:       (query, url)         => ipcRenderer.invoke('log-search', query, url),
+  logBlocked:      (url, reason, query) => ipcRenderer.invoke('log-blocked', url, reason, query),
+  getFilterConfig: ()                   => ipcRenderer.invoke('get-filter-config'),
 
   // Browser navigation
   navigate: (url) => ipcRenderer.send('navigate', url),

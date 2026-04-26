@@ -61,9 +61,10 @@ ipcMain.handle('activate', async (_, code, name) => {
 })
 
 // IPC: telemetry
-ipcMain.handle('log-url',     (_, url, title)         => telemetry.logUrl(url, title))
-ipcMain.handle('log-search',  (_, query, url)          => telemetry.logSearch(query, url))
-ipcMain.handle('log-blocked', (_, url, reason, query)  => telemetry.logBlocked(url, reason, query))
+ipcMain.handle('log-url',          (_, url, title)        => telemetry.logUrl(url, title))
+ipcMain.handle('log-search',       (_, query, url)         => telemetry.logSearch(query, url))
+ipcMain.handle('log-blocked',      (_, url, reason, query) => telemetry.logBlocked(url, reason, query))
+ipcMain.handle('get-filter-config',()                      => telemetry.getFilterConfig())
 
 // Heartbeat every 30s while app is running
 setInterval(() => telemetry.heartbeat(), 30000)

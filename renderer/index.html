@@ -346,63 +346,48 @@
       return `https://www.google.com/search?q=${encodeURIComponent(input)}`
     }
 
-    function showBrowser() {
+    async function showBrowser() {
       document.getElementById('activation-screen').style.display = 'none'
       document.getElementById('browser-ui').style.display = 'flex'
+      await refreshBlocklist()
       initBrowser()
     }
 
-    // ── Keyword blocklist (por categorías) ──────────────────
-    const BLOCKED_CATEGORIES = {
-      pornografia: [
-        'porn','porno','pornografia','pornography','xxx','hentai',
-        'xvideos','pornhub','redtube','xnxx','xhamster','youporn','brazzers',
-        'fakings','bangbros','naughtyamerica','realitykings','mofos',
-        'digitalplayground','twistys','babes.com','girlsdoporn',
-        // actrices/actores conocidos
-        'mia khalifa','lana rhoades','riley reid','johnny sins',
-        'lisa ann','sunny leone','alexis texas','madison ivy',
-        'dillion harper','phoenix marie','jessica jaymes','jenna jameson',
-        'stormy daniels','august ames','eva lovia','abella danger',
-        'elsa jean','adriana chechik','angela white','sasha grey',
-      ],
-      contenido_adulto: [
-        'sexo','sex tape','nude','desnudo','desnuda','desnudos','desnudas',
-        'erotic','erotico','erotica','onlyfans','stripper','escort',
-        'prostitutas','prostitution','camgirl','cam girl','webcam sex',
-        'sexting','nudes','tetas','polla','vagina','pene','coño','follar',
-        'corrida','mamada','orgasmo','masturbacion','masturbate',
-        'fetish','bdsm','bondage','dominatrix','milf','threesome',
-      ],
-      violencia: [
-        'snuff','gore','liveleak murder','beheading video','torture video',
-        'kill video','murder video','execution video','decapitation',
-      ],
-      drogas: [
-        'como comprar droga','comprar cocaina','comprar heroina','dealer droga',
-        'comprar speed','comprar mdma online','como hacer droga',
-        'buy weed online','buy cocaine','buy heroin','darknet drugs',
-        'silkroad drugs','drug marketplace',
-      ],
-      apuestas: [
-        'casino online','apuestas deportivas','bet365','pokerstars',
-        'ruleta online','poker real money','tragaperras','slot machine dinero',
-      ],
-      odio: [
-        'nazismo','neo nazi','white supremacy','kkk','ku klux klan',
-        'racism propaganda','odio racial','matar inmigrantes',
-      ],
+    // ── Keyword blocklist — built-in defaults ───────────────
+    const BUILTIN = {
+      pornografia:      ['porn','porno','pornografia','pornography','xxx','hentai','xvideos','pornhub','redtube','xnxx','xhamster','youporn','brazzers','fakings','bangbros','naughtyamerica','realitykings','mofos','digitalplayground','twistys','girlsdoporn','mia khalifa','lana rhoades','riley reid','johnny sins','lisa ann','sunny leone','alexis texas','madison ivy','dillion harper','phoenix marie','jessica jaymes','jenna jameson','stormy daniels','august ames','eva lovia','abella danger','elsa jean','adriana chechik','angela white','sasha grey'],
+      contenido_adulto: ['sexo','sex tape','nude','desnudo','desnuda','desnudos','desnudas','erotic','erotico','erotica','onlyfans','stripper','escort','prostitutas','prostitution','camgirl','cam girl','webcam sex','sexting','nudes','tetas','polla','vagina','pene','coño','follar','corrida','mamada','orgasmo','masturbacion','masturbate','fetish','bdsm','bondage','dominatrix','milf','threesome'],
+      violencia:        ['snuff','gore','liveleak murder','beheading video','torture video','kill video','murder video','execution video','decapitation'],
+      drogas:           ['como comprar droga','comprar cocaina','comprar heroina','dealer droga','comprar speed','comprar mdma online','como hacer droga','buy weed online','buy cocaine','buy heroin','darknet drugs','silkroad drugs','drug marketplace'],
+      apuestas:         ['casino online','apuestas deportivas','bet365','pokerstars','ruleta online','poker real money','tragaperras','slot machine dinero'],
+      odio:             ['nazismo','neo nazi','white supremacy','kkk','ku klux klan','racism propaganda','odio racial','matar inmigrantes'],
     }
 
-    // Flat list for matching
-    const BLOCKED_KEYWORDS = Object.values(BLOCKED_CATEGORIES).flat()
+    // Live config loaded from Supabase (updated every 30s via heartbeat)
+    let activeBlocklist = Object.values(BUILTIN).flat()  // flat list for fast matching
+    let activeCategories = Object.keys(BUILTIN)          // which categories are enabled
 
-    function getCategory(query) {
+    async function refreshBlocklist() {
+      try {
+        const cfg = await window.penwinsafe.getFilterConfig()
+        if (!cfg) return
+        activeCategories = cfg.activeCategories || Object.keys(BUILTIN)
+        // Merge built-in + custom words for active categories only
+        const merged = {}
+        for (const cat of activeCategories) {
+          merged[cat] = [...(BUILTIN[cat] || []), ...(cfg.customWords?.[cat] || [])]
+        }
+        activeBlocklist = Object.values(merged).flat()
+      } catch {}
+    }
+
+    // Refresh every 30s to pick up panel changes
+    setInterval(refreshBlocklist, 30000)
+
+    function isBlockedQuery(query) {
+      if (!query) return false
       const q = query.toLowerCase()
-      for (const [cat, words] of Object.entries(BLOCKED_CATEGORIES)) {
-        if (words.some(kw => q.includes(kw))) return cat
-      }
-      return 'otros'
+      return activeBlocklist.some(kw => q.includes(kw))
     }
 
     function extractSearchQuery(url) {
