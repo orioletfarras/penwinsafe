@@ -1,7 +1,7 @@
 'use strict'
 
 const { createClient } = require('@supabase/supabase-js')
-const { desktopCapturer } = require('electron')
+const { desktopCapturer, systemPreferences } = require('electron')
 const activation = require('./activation')
 
 const SUPABASE_URL = 'https://usmpicfqqiowdlridybh.supabase.co'
@@ -83,13 +83,27 @@ async function pollScreenshots(deviceId) {
     activeScreenshotId = data.id
     console.log('[rtc] screenshot request', data.id)
 
+    // Check macOS screen recording permission
+    if (process.platform === 'darwin') {
+      const perm = systemPreferences.getMediaAccessStatus('screen')
+      console.log('[rtc] screen permission:', perm)
+      if (perm !== 'granted') {
+        console.warn('[rtc] screen recording permission not granted — open System Settings > Privacy > Screen Recording and enable PenwinSafe')
+        throw new Error(`screen permission: ${perm}`)
+      }
+    }
+
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: { width: 1920, height: 1080 }
     })
 
-    const png = sources[0]?.thumbnail?.toPNG()
-    if (!png) throw new Error('no screen source')
+    console.log('[rtc] sources found:', sources.length, sources.map(s => s.name))
+    const thumb = sources[0]?.thumbnail
+    console.log('[rtc] thumbnail empty?', thumb?.isEmpty())
+
+    const png = thumb?.toPNG()
+    if (!png || png.length < 100) throw new Error(`invalid png (${png?.length} bytes)`)
 
     await supabase.from('screenshot_requests').update({
       status: 'done',
@@ -97,9 +111,9 @@ async function pollScreenshots(deviceId) {
       taken_at: new Date().toISOString(),
     }).eq('id', data.id)
 
-    console.log('[rtc] screenshot uploaded')
+    console.log('[rtc] screenshot uploaded', Math.round(png.length / 1024), 'KB')
   } catch (e) {
-    console.error('[rtc] screenshot error:', e.message)
+    console.error('[rtc] screenshot error:', e?.message || e)
     if (activeScreenshotId) {
       try { await supabase.from('screenshot_requests').update({ status: 'error' }).eq('id', activeScreenshotId) } catch {}
     }
