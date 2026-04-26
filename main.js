@@ -6,6 +6,8 @@ const proxy = require('./src/socks-proxy')
 const activation = require('./src/activation')
 const telemetry = require('./src/telemetry')
 
+app.setName('PenwinSafe')
+
 app.commandLine.appendSwitch('no-sandbox')
 app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors')
 
