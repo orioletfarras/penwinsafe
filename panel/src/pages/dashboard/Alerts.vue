@@ -98,6 +98,12 @@ const alertStats = computed(() => [
 onMounted(async () => {
   const { data } = await supabase.from('alerts').select('*').order('created_at', { ascending: false }).limit(50)
   alerts.value = data || []
+
+  supabase.channel('alerts-rt')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, p => {
+      alerts.value.unshift(p.new)
+    })
+    .subscribe()
 })
 
 async function resolve(alert) {

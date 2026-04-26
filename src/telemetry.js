@@ -17,6 +17,26 @@ function getDeviceId() {
   return activation.loadActivation()?.deviceId || null
 }
 
+function getDeviceName() {
+  return activation.loadActivation()?.deviceName || 'Dispositivo'
+}
+
+const CATEGORY_SEVERITY = {
+  pornografia:      'critical',
+  contenido_adulto: 'critical',
+  violencia:        'danger',
+  drogas:           'danger',
+  odio:             'danger',
+  apuestas:         'warning',
+}
+
+function severityForReason(reason) {
+  for (const [cat, sev] of Object.entries(CATEGORY_SEVERITY)) {
+    if (reason.includes(cat)) return sev
+  }
+  return 'warning'
+}
+
 function extractDomain(url) {
   try { return new URL(url).hostname.replace('www.', '') } catch { return url }
 }
@@ -124,6 +144,19 @@ async function logBlocked(url, reason, query) {
     blocked_at: new Date().toISOString(),
   })
   if (error) console.error('[telemetry] logBlocked insert error:', error.message)
+
+  // Create alert in panel
+  const deviceName = getDeviceName()
+  const isKeyword = reason === 'keyword_filter'
+  const label = isKeyword
+    ? `"${query}" bloqueado en ${deviceName}`
+    : `Acceso bloqueado a ${domain} en ${deviceName}`
+  await supabase.from('alerts').insert({
+    device_id: deviceId,
+    type: isKeyword ? 'concerning_search' : 'blocked_site',
+    severity: severityForReason(reason),
+    message: label,
+  }).then(({ error: e }) => { if (e) console.error('[telemetry] alert insert error:', e.message) })
 
   // Fire-and-forget tutor notification
   supabase.functions.invoke('notify-blocked', {
