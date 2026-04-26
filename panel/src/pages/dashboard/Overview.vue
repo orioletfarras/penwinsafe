@@ -1,109 +1,144 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
 
     <!-- Stat cards -->
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
       <div v-for="s in stats" :key="s.label"
-        class="rounded-xl border border-white/6 p-5 relative overflow-hidden"
-        style="background:#0d1117">
-        <div class="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-30 pointer-events-none" :style="`background:${s.glow}`"></div>
-        <div class="flex items-start justify-between mb-3">
-          <div class="w-8 h-8 rounded-lg flex items-center justify-center" :style="`background:${s.glow}20`">
-            <component :is="s.icon" class="w-4 h-4" :style="`color:${s.glow}`" />
-          </div>
-          <span v-if="s.trend" class="text-[11px] font-medium px-1.5 py-0.5 rounded-md" :class="s.trend > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'">
-            {{ s.trend > 0 ? '+' : '' }}{{ s.trend }}%
-          </span>
+        class="rounded px-4 py-3 flex items-center gap-3"
+        style="background:#141820;border:1px solid rgba(255,255,255,0.07)">
+        <div class="w-7 h-7 rounded flex items-center justify-center flex-shrink-0" :style="`background:${s.glow}14`">
+          <component :is="s.icon" class="w-[15px] h-[15px]" :style="`color:${s.glow}`" />
         </div>
-        <p class="text-2xl font-black text-white tracking-tight">{{ s.value }}</p>
-        <p class="text-xs text-gray-600 mt-0.5">{{ s.label }}</p>
+        <div class="min-w-0">
+          <p class="text-[22px] font-bold text-white leading-none tracking-tight">{{ s.value }}</p>
+          <p class="text-[11px] mt-0.5 truncate" style="color:#6b7280">{{ s.label }}</p>
+        </div>
       </div>
     </div>
 
     <!-- Main grid -->
     <div class="grid xl:grid-cols-3 gap-4">
 
-      <!-- Actividad reciente (2/3) -->
-      <div class="xl:col-span-2 rounded-xl border border-white/6 overflow-hidden" style="background:#0d1117">
-        <div class="px-5 py-4 border-b border-white/6 flex items-center justify-between">
+      <!-- Busquedas recientes (2/3) -->
+      <div class="xl:col-span-2 rounded overflow-hidden" style="background:#141820;border:1px solid rgba(255,255,255,0.07)">
+        <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.07)">
           <div>
-            <h2 class="text-sm font-semibold text-white">Búsquedas recientes</h2>
-            <p class="text-xs text-gray-600 mt-0.5">Clasificadas automáticamente por IA</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wider" style="color:#4b5563">Busquedas recientes</p>
           </div>
-          <router-link to="/dashboard/devices" class="text-xs text-brand-400 hover:text-brand-300 transition-colors">Ver todo →</router-link>
+          <router-link to="/dashboard/devices"
+            class="text-[11px] font-medium transition-colors"
+            style="color:#006fff">
+            Ver todo
+          </router-link>
         </div>
-        <div class="divide-y divide-white/4">
-          <div v-for="s in recentSearches" :key="s.id" class="px-5 py-3 flex items-center gap-4 hover:bg-white/2 transition-colors">
-            <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" :style="`background:${engineColor(s.engine)}15`">
-              <span class="text-xs font-bold" :style="`color:${engineColor(s.engine)}`">{{ s.engine[0].toUpperCase() }}</span>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm text-white truncate font-medium">{{ s.query }}</p>
-              <p class="text-xs text-gray-600 mt-0.5">{{ s.devices?.name }} · {{ timeAgo(s.searched_at) }}</p>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-              <!-- IA badge -->
-              <div class="flex items-center gap-1 text-[10px] text-purple-400 bg-purple-400/10 border border-purple-400/15 px-2 py-0.5 rounded-full">
-                <SparklesIcon class="w-2.5 h-2.5" />
-                {{ s.ai_category || '—' }}
-              </div>
-              <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" :class="riskDot(s.ai_risk_level)"></span>
-            </div>
-          </div>
-          <div v-if="recentSearches.length === 0" class="px-5 py-10 text-center text-xs text-gray-600">
-            Sin actividad reciente
-          </div>
-        </div>
+        <table class="w-full">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+              <th class="text-left px-4 py-2 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">Consulta</th>
+              <th class="text-left px-4 py-2 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">Dispositivo</th>
+              <th class="text-left px-4 py-2 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">Categoria IA</th>
+              <th class="text-left px-4 py-2 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">Hace</th>
+              <th class="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">Riesgo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="s in recentSearches" :key="s.id"
+              class="transition-colors"
+              style="border-bottom:1px solid rgba(255,255,255,0.03)"
+              onmouseenter="this.style.background='rgba(255,255,255,0.02)'"
+              onmouseleave="this.style.background='transparent'">
+              <td class="px-4 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+                    :style="`background:${engineColor(s.engine)}18;color:${engineColor(s.engine)}`">
+                    {{ s.engine[0].toUpperCase() }}
+                  </span>
+                  <span class="text-[12px] text-white truncate max-w-[180px]">{{ s.query }}</span>
+                </div>
+              </td>
+              <td class="px-4 py-2 text-[12px]" style="color:#6b7280">{{ s.devices?.name || '—' }}</td>
+              <td class="px-4 py-2">
+                <div v-if="s.ai_category" class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded"
+                  style="background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.15)">
+                  <SparklesIcon class="w-2.5 h-2.5" />
+                  {{ s.ai_category }}
+                </div>
+                <span v-else class="text-[11px]" style="color:#374151">—</span>
+              </td>
+              <td class="px-4 py-2 text-[11px]" style="color:#4b5563">{{ timeAgo(s.searched_at) }}</td>
+              <td class="px-4 py-2 text-center">
+                <span class="w-2 h-2 rounded-full inline-block" :class="riskDot(s.ai_risk_level)"></span>
+              </td>
+            </tr>
+            <tr v-if="recentSearches.length === 0">
+              <td colspan="5" class="px-4 py-10 text-center text-[12px]" style="color:#374151">Sin actividad reciente</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      <!-- Columna derecha -->
+      <!-- Right column -->
       <div class="space-y-4">
 
-        <!-- Alertas IA -->
-        <div class="rounded-xl border border-white/6 overflow-hidden" style="background:#0d1117">
-          <div class="px-5 py-4 border-b border-white/6 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <SparklesIcon class="w-3.5 h-3.5 text-purple-400" />
-              <h2 class="text-sm font-semibold text-white">Alertas IA</h2>
+        <!-- Alertas -->
+        <div class="rounded overflow-hidden" style="background:#141820;border:1px solid rgba(255,255,255,0.07)">
+          <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.07)">
+            <div class="flex items-center gap-1.5">
+              <SparklesIcon class="w-3 h-3" style="color:#a78bfa" />
+              <p class="text-[11px] font-semibold uppercase tracking-wider" style="color:#4b5563">Alertas IA</p>
             </div>
-            <router-link to="/dashboard/alerts" class="text-xs text-brand-400 hover:text-brand-300 transition-colors">Ver todo →</router-link>
+            <router-link to="/dashboard/alerts"
+              class="text-[11px] font-medium"
+              style="color:#006fff">
+              Ver todo
+            </router-link>
           </div>
-          <div class="divide-y divide-white/4">
-            <div v-for="a in topAlerts" :key="a.id" class="px-5 py-3">
-              <div class="flex items-start gap-2.5">
-                <div class="w-1 self-stretch rounded-full flex-shrink-0 mt-0.5" :class="severityBar(a.severity)"></div>
+          <div>
+            <div v-for="a in topAlerts" :key="a.id"
+              class="px-4 py-3 transition-colors"
+              style="border-bottom:1px solid rgba(255,255,255,0.04)"
+              onmouseenter="this.style.background='rgba(255,255,255,0.02)'"
+              onmouseleave="this.style.background='transparent'">
+              <div class="flex items-start gap-2">
+                <div class="w-0.5 self-stretch rounded-full flex-shrink-0 mt-0.5" :class="severityBar(a.severity)"></div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-xs text-white leading-snug line-clamp-2">{{ a.message }}</p>
-                  <p class="text-[10px] text-gray-600 mt-1">{{ timeAgo(a.created_at) }}</p>
+                  <div class="flex items-start justify-between gap-2 mb-0.5">
+                    <p class="text-[12px] text-white leading-snug line-clamp-2">{{ a.message }}</p>
+                    <span class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5" :class="severityPill(a.severity)">{{ a.severity }}</span>
+                  </div>
+                  <p class="text-[10px]" style="color:#374151">{{ timeAgo(a.created_at) }}</p>
                 </div>
-                <span class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded flex-shrink-0" :class="severityPill(a.severity)">{{ a.severity }}</span>
               </div>
-              <p v-if="a.ai_summary" class="text-[11px] text-gray-500 mt-2 ml-3.5 leading-relaxed italic line-clamp-2">
+              <p v-if="a.ai_summary" class="text-[11px] mt-1.5 ml-2.5 leading-relaxed line-clamp-2" style="color:#6b7280;font-style:italic">
                 "{{ a.ai_summary }}"
               </p>
             </div>
-            <div v-if="topAlerts.length === 0" class="px-5 py-8 text-center text-xs text-gray-600">Sin alertas</div>
+            <div v-if="topAlerts.length === 0" class="px-4 py-8 text-center text-[12px]" style="color:#374151">Sin alertas</div>
           </div>
         </div>
 
         <!-- Dispositivos online -->
-        <div class="rounded-xl border border-white/6 overflow-hidden" style="background:#0d1117">
-          <div class="px-5 py-4 border-b border-white/6">
-            <h2 class="text-sm font-semibold text-white">Online ahora</h2>
+        <div class="rounded overflow-hidden" style="background:#141820;border:1px solid rgba(255,255,255,0.07)">
+          <div class="px-4 py-3" style="border-bottom:1px solid rgba(255,255,255,0.07)">
+            <p class="text-[11px] font-semibold uppercase tracking-wider" style="color:#4b5563">Online ahora</p>
           </div>
-          <div class="divide-y divide-white/4">
-            <div v-for="d in onlineDevices" :key="d.id" class="px-5 py-2.5 flex items-center justify-between">
+          <div>
+            <div v-for="d in onlineDevices" :key="d.id"
+              class="px-4 py-2.5 flex items-center justify-between transition-colors"
+              style="border-bottom:1px solid rgba(255,255,255,0.03)"
+              onmouseenter="this.style.background='rgba(255,255,255,0.02)'"
+              onmouseleave="this.style.background='transparent'">
               <div>
-                <p class="text-xs font-medium text-white">{{ d.name }}</p>
-                <p class="text-[10px] text-gray-600">{{ d.ip_address }}</p>
+                <p class="text-[12px] font-medium text-white">{{ d.name }}</p>
+                <p class="text-[10px] font-mono" style="color:#374151">{{ d.ip_address }}</p>
               </div>
               <div class="flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-                <span class="text-[10px] text-green-400">Online</span>
+                <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#4ade80"></span>
+                <span class="text-[10px]" style="color:#4ade80">Online</span>
               </div>
             </div>
-            <div v-if="onlineDevices.length === 0" class="px-5 py-6 text-center text-xs text-gray-600">
-              Ningún dispositivo activo
+            <div v-if="onlineDevices.length === 0" class="px-4 py-6 text-center text-[12px]" style="color:#374151">
+              Ningun dispositivo activo
             </div>
           </div>
         </div>
@@ -111,19 +146,21 @@
       </div>
     </div>
 
-    <!-- Distribución de categorías IA -->
-    <div class="rounded-xl border border-white/6 p-5" style="background:#0d1117">
-      <div class="flex items-center gap-2 mb-4">
-        <SparklesIcon class="w-4 h-4 text-purple-400" />
-        <h2 class="text-sm font-semibold text-white">Categorización IA — últimas 48h</h2>
+    <!-- Categorias IA -->
+    <div class="rounded p-4" style="background:#141820;border:1px solid rgba(255,255,255,0.07)">
+      <div class="flex items-center gap-1.5 mb-3">
+        <SparklesIcon class="w-3.5 h-3.5" style="color:#a78bfa" />
+        <p class="text-[11px] font-semibold uppercase tracking-wider" style="color:#4b5563">Categorizacion IA — ultimas 48h</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <div v-for="cat in aiCategories" :key="cat.name"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/6 text-xs">
-          <span class="w-2 h-2 rounded-full" :style="`background:${cat.color}`"></span>
-          <span class="text-gray-400">{{ cat.name }}</span>
-          <span class="text-white font-semibold">{{ cat.count }}</span>
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded text-[11px]"
+          style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">
+          <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" :style="`background:${cat.color}`"></span>
+          <span style="color:#9ca3af">{{ cat.name }}</span>
+          <span class="font-semibold text-white">{{ cat.count }}</span>
         </div>
+        <div v-if="aiCategories.length === 0" class="text-[12px]" style="color:#374151">Sin datos en el periodo</div>
       </div>
     </div>
 
@@ -166,10 +203,10 @@ onMounted(async () => {
   ])
 
   stats.value = [
-    { label: 'Dispositivos',       value: totalDevices ?? 0,  glow: '#3b82f6', icon: ComputerDesktopIcon, trend: null },
-    { label: 'Online ahora',       value: onlineCount ?? 0,   glow: '#22c55e', icon: ComputerDesktopIcon, trend: null },
-    { label: 'Alertas sin resolver', value: alertsCount ?? 0, glow: '#ef4444', icon: BellAlertIcon,       trend: null },
-    { label: 'Búsquedas hoy',      value: searchesToday ?? 0, glow: '#a855f7', icon: MagnifyingGlassIcon, trend: null },
+    { label: 'Dispositivos',         value: totalDevices ?? 0,  glow: '#006fff', icon: ComputerDesktopIcon, trend: null },
+    { label: 'Online ahora',         value: onlineCount ?? 0,   glow: '#22c55e', icon: ComputerDesktopIcon, trend: null },
+    { label: 'Alertas sin resolver', value: alertsCount ?? 0,   glow: '#ef4444', icon: BellAlertIcon,       trend: null },
+    { label: 'Busquedas hoy',        value: searchesToday ?? 0, glow: '#a855f7', icon: MagnifyingGlassIcon, trend: null },
   ]
 
   recentSearches.value = searches || []
@@ -178,7 +215,7 @@ onMounted(async () => {
 
   // Contar categorías
   const counts = {}
-  const catColors = { educativo: '#3b82f6', juegos: '#10b981', redes_sociales: '#f59e0b', preocupante: '#ef4444', inapropiado: '#f97316', tecnologia: '#8b5cf6', entretenimiento: '#06b6d4' }
+  const catColors = { educativo: '#006fff', juegos: '#10b981', redes_sociales: '#f59e0b', preocupante: '#ef4444', inapropiado: '#f97316', tecnologia: '#8b5cf6', entretenimiento: '#06b6d4' }
   ;(catData || []).forEach(r => {
     if (r.ai_category) counts[r.ai_category] = (counts[r.ai_category] || 0) + 1
   })

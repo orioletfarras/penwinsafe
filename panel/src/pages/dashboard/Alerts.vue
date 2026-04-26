@@ -1,67 +1,74 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
 
-    <!-- Header con stats -->
+    <!-- Stat strip -->
     <div class="grid grid-cols-4 gap-3">
       <div v-for="s in alertStats" :key="s.label"
-        class="rounded-xl border border-white/6 px-4 py-3 flex items-center gap-3" style="background:#0d1117">
-        <div class="w-2 h-2 rounded-full flex-shrink-0" :class="s.dot"></div>
+        class="rounded px-3 py-2.5 flex items-center gap-3"
+        style="background:#141820;border:1px solid rgba(255,255,255,0.07)">
+        <span class="w-2 h-2 rounded-full flex-shrink-0" :class="s.dot"></span>
         <div>
-          <p class="text-lg font-black text-white">{{ s.count }}</p>
-          <p class="text-[11px] text-gray-600">{{ s.label }}</p>
+          <p class="text-[20px] font-bold text-white leading-none">{{ s.count }}</p>
+          <p class="text-[10px] mt-0.5" style="color:#4b5563">{{ s.label }}</p>
         </div>
       </div>
     </div>
 
     <!-- Lista de alertas -->
-    <div class="rounded-xl border border-white/6 overflow-hidden" style="background:#0d1117">
-      <div class="px-5 py-4 border-b border-white/6 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <SparklesIcon class="w-4 h-4 text-purple-400" />
-          <h2 class="text-sm font-semibold text-white">Alertas generadas por IA</h2>
+    <div class="rounded overflow-hidden" style="background:#141820;border:1px solid rgba(255,255,255,0.07)">
+      <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.07)">
+        <div class="flex items-center gap-1.5">
+          <SparklesIcon class="w-3 h-3" style="color:#a78bfa" />
+          <p class="text-[11px] font-semibold uppercase tracking-wider" style="color:#4b5563">Alertas generadas por IA</p>
         </div>
-        <label class="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
-          <input type="checkbox" v-model="showResolved" class="rounded" />
+        <label class="flex items-center gap-2 text-[11px] cursor-pointer" style="color:#4b5563">
+          <input type="checkbox" v-model="showResolved" class="rounded" style="accent-color:#006fff" />
           Mostrar resueltas
         </label>
       </div>
 
-      <div class="divide-y divide-white/4">
+      <div>
         <div v-for="a in filteredAlerts" :key="a.id"
-          class="px-5 py-4 hover:bg-white/2 transition-colors"
-          :class="a.resolved ? 'opacity-40' : ''">
-          <div class="flex items-start gap-4">
-            <!-- Severity indicator -->
-            <div class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" :class="severityBg(a.severity)">
-              <component :is="severityIcon(a.severity)" class="w-4 h-4" :class="severityIconColor(a.severity)" />
+          class="px-4 py-3 transition-colors"
+          :style="[
+            'border-bottom:1px solid rgba(255,255,255,0.04)',
+            a.resolved ? 'opacity:0.4' : ''
+          ].join(';')"
+          onmouseenter="this.style.background='rgba(255,255,255,0.02)'"
+          onmouseleave="this.style.background='transparent'">
+          <div class="flex items-start gap-3">
+            <!-- Severity icon -->
+            <div class="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center mt-0.5" :class="severityBg(a.severity)">
+              <component :is="severityIcon(a.severity)" class="w-3.5 h-3.5" :class="severityIconColor(a.severity)" />
             </div>
 
             <div class="flex-1 min-w-0">
               <div class="flex items-start justify-between gap-3 mb-1">
-                <p class="text-sm font-semibold text-white">{{ a.message }}</p>
-                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md flex-shrink-0" :class="severityPill(a.severity)">
+                <p class="text-[12px] font-medium text-white leading-snug">{{ a.message }}</p>
+                <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5" :class="severityPill(a.severity)">
                   {{ a.severity }}
                 </span>
               </div>
 
-              <!-- IA summary destacado -->
-              <div v-if="a.ai_summary" class="mt-2 p-3 rounded-lg border border-purple-400/15 bg-purple-400/5 flex gap-2">
-                <SparklesIcon class="w-3.5 h-3.5 text-purple-400 flex-shrink-0 mt-0.5" />
-                <p class="text-xs text-gray-300 leading-relaxed italic">{{ a.ai_summary }}</p>
+              <!-- AI summary -->
+              <div v-if="a.ai_summary" class="mt-1.5 px-2.5 py-2 rounded flex gap-1.5" style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.12)">
+                <SparklesIcon class="w-3 h-3 flex-shrink-0 mt-0.5" style="color:#a78bfa" />
+                <p class="text-[11px] leading-relaxed" style="color:#9ca3af;font-style:italic">{{ a.ai_summary }}</p>
               </div>
 
               <div class="flex items-center justify-between mt-2">
-                <p class="text-[11px] text-gray-600">{{ formatDate(a.created_at) }}</p>
+                <p class="text-[10px]" style="color:#374151">{{ formatDate(a.created_at) }}</p>
                 <button v-if="!a.resolved" @click="resolve(a)"
-                  class="text-[11px] font-medium text-brand-400 hover:text-brand-300 bg-brand-500/10 border border-brand-500/20 px-2.5 py-1 rounded-lg transition-all">
+                  class="text-[11px] font-medium px-2.5 py-1 rounded transition-colors"
+                  style="color:#006fff;background:rgba(0,111,255,0.08);border:1px solid rgba(0,111,255,0.15)">
                   Marcar como resuelta
                 </button>
-                <span v-else class="text-[11px] text-gray-600">✓ Resuelta</span>
+                <span v-else class="text-[10px]" style="color:#374151">Resuelta</span>
               </div>
             </div>
           </div>
         </div>
-        <div v-if="filteredAlerts.length === 0" class="px-5 py-12 text-center text-sm text-gray-600">
+        <div v-if="filteredAlerts.length === 0" class="px-4 py-12 text-center text-[12px]" style="color:#374151">
           Sin alertas pendientes
         </div>
       </div>
@@ -82,7 +89,7 @@ const filteredAlerts = computed(() =>
 )
 
 const alertStats = computed(() => [
-  { label: 'Críticas',  count: alerts.value.filter(a => a.severity === 'critical' && !a.resolved).length, dot: 'bg-red-500' },
+  { label: 'Criticas',  count: alerts.value.filter(a => a.severity === 'critical' && !a.resolved).length, dot: 'bg-red-500' },
   { label: 'Peligro',   count: alerts.value.filter(a => a.severity === 'danger'   && !a.resolved).length, dot: 'bg-orange-400' },
   { label: 'Aviso',     count: alerts.value.filter(a => a.severity === 'warning'  && !a.resolved).length, dot: 'bg-yellow-400' },
   { label: 'Resueltas', count: alerts.value.filter(a => a.resolved).length, dot: 'bg-green-500' },

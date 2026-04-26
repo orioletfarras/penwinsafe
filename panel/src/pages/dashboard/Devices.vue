@@ -1,85 +1,94 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
 
     <!-- Filtros -->
-    <div class="flex items-center gap-3">
-      <div class="flex-1 relative">
-        <MagnifyingGlassIcon class="w-4 h-4 text-gray-600 absolute left-3 top-1/2 -translate-y-1/2" />
+    <div class="flex items-center gap-2.5">
+      <div class="flex-1 relative max-w-xs">
+        <MagnifyingGlassIcon class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style="color:#4b5563" />
         <input v-model="search" type="text" placeholder="Buscar dispositivo..."
-          class="w-full pl-9 pr-4 py-2 bg-white/4 border border-white/8 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 transition-colors" />
+          class="w-full pl-8 pr-3 py-1.5 rounded text-[12px] text-white placeholder-gray-600 focus:outline-none transition-colors"
+          style="background:#141820;border:1px solid rgba(255,255,255,0.07);color:#e5e7eb" />
       </div>
       <select v-model="filterStatus"
-        class="bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-gray-400 focus:outline-none focus:border-brand-500 transition-colors">
+        class="rounded px-2.5 py-1.5 text-[12px] focus:outline-none transition-colors"
+        style="background:#141820;border:1px solid rgba(255,255,255,0.07);color:#9ca3af">
         <option value="">Todos los estados</option>
         <option value="online">Online</option>
         <option value="offline">Offline</option>
         <option value="locked">Bloqueado</option>
       </select>
-      <div class="flex items-center gap-1.5 text-xs text-gray-500 bg-white/4 border border-white/8 px-3 py-2 rounded-lg">
-        <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+      <div class="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded" style="color:#4b5563;background:#141820;border:1px solid rgba(255,255,255,0.07)">
+        <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#4ade80"></span>
         {{ onlineCount }} online
       </div>
     </div>
 
     <!-- Tabla -->
-    <div class="rounded-xl border border-white/6 overflow-hidden" style="background:#0d1117">
+    <div class="rounded overflow-hidden" style="background:#141820;border:1px solid rgba(255,255,255,0.07)">
       <table class="w-full">
         <thead>
-          <tr class="border-b border-white/6">
-            <th class="text-left px-5 py-3 text-[11px] uppercase tracking-widest text-gray-600 font-semibold">Dispositivo</th>
-            <th class="text-left px-5 py-3 text-[11px] uppercase tracking-widest text-gray-600 font-semibold">Aula</th>
-            <th class="text-left px-5 py-3 text-[11px] uppercase tracking-widest text-gray-600 font-semibold">Estado</th>
-            <th class="text-left px-5 py-3 text-[11px] uppercase tracking-widest text-gray-600 font-semibold">Última actividad</th>
-            <th class="text-left px-5 py-3 text-[11px] uppercase tracking-widest text-gray-600 font-semibold">IP</th>
-            <th class="px-5 py-3"></th>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.07)">
+            <th class="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">Dispositivo</th>
+            <th class="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">Aula</th>
+            <th class="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">Estado</th>
+            <th class="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">Ultima actividad</th>
+            <th class="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider" style="color:#374151">IP</th>
+            <th class="px-4 py-2.5"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-white/4">
-          <tr v-for="d in filteredDevices" :key="d.id" class="hover:bg-white/2 transition-colors">
-            <td class="px-5 py-3.5">
-              <div class="flex items-center gap-3">
-                <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                  :class="d.status === 'online' ? 'bg-green-500/10' : d.status === 'locked' ? 'bg-red-500/10' : 'bg-white/5'">
+        <tbody>
+          <tr v-for="d in filteredDevices" :key="d.id"
+            class="transition-colors"
+            style="border-bottom:1px solid rgba(255,255,255,0.04)"
+            onmouseenter="this.style.background='rgba(255,255,255,0.02)'"
+            onmouseleave="this.style.background='transparent'">
+            <td class="px-4 py-2">
+              <div class="flex items-center gap-2.5">
+                <div class="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                  :style="d.status === 'online' ? 'background:rgba(74,222,128,0.08)' : d.status === 'locked' ? 'background:rgba(239,68,68,0.08)' : 'background:rgba(255,255,255,0.04)'">
                   <ComputerDesktopIcon class="w-3.5 h-3.5"
-                    :class="d.status === 'online' ? 'text-green-400' : d.status === 'locked' ? 'text-red-400' : 'text-gray-600'" />
+                    :style="d.status === 'online' ? 'color:#4ade80' : d.status === 'locked' ? 'color:#f87171' : 'color:#374151'" />
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-white">{{ d.name }}</p>
-                  <p class="text-[11px] text-gray-600">{{ d.os_info || 'Windows' }}</p>
+                  <p class="text-[12px] font-medium text-white">{{ d.name }}</p>
+                  <p class="text-[10px]" style="color:#374151">{{ d.os_info || 'Windows' }}</p>
                 </div>
               </div>
             </td>
-            <td class="px-5 py-3.5">
-              <span class="text-xs text-gray-400 bg-white/5 border border-white/8 px-2 py-1 rounded-md">{{ d.groups?.name || '—' }}</span>
+            <td class="px-4 py-2">
+              <span class="text-[11px] px-1.5 py-0.5 rounded" style="background:rgba(255,255,255,0.04);color:#6b7280;border:1px solid rgba(255,255,255,0.06)">
+                {{ d.groups?.name || '—' }}
+              </span>
             </td>
-            <td class="px-5 py-3.5">
+            <td class="px-4 py-2">
               <div class="flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full" :class="statusDot(d.status)"></span>
-                <span class="text-xs font-medium" :class="statusText(d.status)">{{ statusLabel(d.status) }}</span>
+                <span class="text-[12px] font-medium" :class="statusText(d.status)">{{ statusLabel(d.status) }}</span>
               </div>
             </td>
-            <td class="px-5 py-3.5 text-xs text-gray-500">
+            <td class="px-4 py-2 text-[11px]" style="color:#4b5563">
               {{ d.last_seen ? timeAgo(d.last_seen) : 'Nunca' }}
             </td>
-            <td class="px-5 py-3.5 text-xs text-gray-600 font-mono">{{ d.ip_address || '—' }}</td>
-            <td class="px-5 py-3.5">
-              <div class="flex items-center justify-end gap-2">
+            <td class="px-4 py-2 text-[11px] font-mono" style="color:#4b5563">{{ d.ip_address || '—' }}</td>
+            <td class="px-4 py-2">
+              <div class="flex items-center justify-end gap-1.5">
                 <button v-if="d.status === 'online'" @click="watchLive(d)"
-                  class="text-[11px] font-medium text-brand-400 hover:text-brand-300 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 px-2.5 py-1.5 rounded-lg transition-all">
+                  class="text-[11px] font-medium px-2.5 py-1 rounded transition-colors"
+                  style="color:#006fff;background:rgba(0,111,255,0.08);border:1px solid rgba(0,111,255,0.2)">
                   Ver en vivo
                 </button>
                 <button @click="toggleLock(d)"
-                  :class="d.status === 'locked'
-                    ? 'text-green-400 bg-green-500/10 hover:bg-green-500/20 border-green-500/20'
-                    : 'text-red-400 bg-red-500/8 hover:bg-red-500/15 border-red-500/15'"
-                  class="text-[11px] font-medium border px-2.5 py-1.5 rounded-lg transition-all">
+                  class="text-[11px] font-medium px-2.5 py-1 rounded transition-colors"
+                  :style="d.status === 'locked'
+                    ? 'color:#4ade80;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.15)'
+                    : 'color:#f87171;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.12)'">
                   {{ d.status === 'locked' ? 'Desbloquear' : 'Bloquear' }}
                 </button>
               </div>
             </td>
           </tr>
           <tr v-if="filteredDevices.length === 0">
-            <td colspan="6" class="px-5 py-12 text-center text-sm text-gray-600">Sin dispositivos</td>
+            <td colspan="6" class="px-4 py-12 text-center text-[12px]" style="color:#374151">Sin dispositivos</td>
           </tr>
         </tbody>
       </table>
@@ -88,30 +97,32 @@
 
   <!-- Modal vista en vivo -->
   <Teleport to="body">
-    <div v-if="liveDevice" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7);backdrop-filter:blur(8px)">
-      <div class="w-full max-w-2xl rounded-2xl border border-white/10 overflow-hidden" style="background:#0b0e16">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-white/6">
-          <div class="flex items-center gap-3">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-              <span class="text-sm font-semibold text-white">{{ liveDevice.name }}</span>
-            </div>
-            <span class="text-xs px-2 py-0.5 rounded-md" style="background:rgba(37,99,235,0.1);color:#93c5fd">En vivo</span>
+    <div v-if="liveDevice" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6)">
+      <div class="w-full max-w-lg rounded overflow-hidden" style="background:#141820;border:1px solid rgba(255,255,255,0.1)">
+        <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid rgba(255,255,255,0.07)">
+          <div class="flex items-center gap-2.5">
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#4ade80"></span>
+            <span class="text-[13px] font-semibold text-white">{{ liveDevice.name }}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" style="background:rgba(0,111,255,0.1);color:#006fff;border:1px solid rgba(0,111,255,0.2)">En vivo</span>
           </div>
-          <button @click="liveDevice = null" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors">
-            <XMarkIcon class="w-4 h-4" style="color:#6b7280" />
+          <button @click="liveDevice = null"
+            class="w-6 h-6 flex items-center justify-center rounded transition-colors"
+            style="color:#6b7280"
+            onmouseenter="this.style.background='rgba(255,255,255,0.05)'"
+            onmouseleave="this.style.background='transparent'">
+            <XMarkIcon class="w-4 h-4" />
           </button>
         </div>
-        <div class="p-6 text-center space-y-4" style="min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto" style="background:rgba(37,99,235,0.1)">
-            <SignalIcon class="w-7 h-7" style="color:#3b82f6" />
+        <div class="p-8 text-center space-y-4" style="min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div class="w-10 h-10 rounded flex items-center justify-center mx-auto" style="background:rgba(0,111,255,0.1)">
+            <SignalIcon class="w-5 h-5" style="color:#006fff" />
           </div>
           <div>
-            <p class="text-sm font-semibold text-white mb-1">Vista en vivo disponible próximamente</p>
-            <p class="text-xs" style="color:#6b7280">La conexión WebRTC con Cloudflare TURN está en desarrollo.<br>Podrás ver la pantalla del alumno en tiempo real.</p>
+            <p class="text-[13px] font-semibold text-white mb-1">Vista en vivo disponible proximamente</p>
+            <p class="text-[12px] leading-relaxed" style="color:#4b5563">La conexion WebRTC con Cloudflare TURN esta en desarrollo.<br>Podras ver la pantalla del alumno en tiempo real.</p>
           </div>
-          <div class="text-xs px-3 py-2 rounded-lg" style="background:rgba(255,255,255,0.04);color:#4b5563">
-            Dispositivo: {{ liveDevice.name }} · IP: {{ liveDevice.ip_address }} · {{ liveDevice.os_info }}
+          <div class="text-[11px] px-3 py-2 rounded font-mono" style="background:rgba(255,255,255,0.03);color:#4b5563;border:1px solid rgba(255,255,255,0.06)">
+            {{ liveDevice.name }} &middot; {{ liveDevice.ip_address }} &middot; {{ liveDevice.os_info }}
           </div>
         </div>
       </div>

@@ -1,39 +1,38 @@
 <template>
-  <div class="min-h-screen flex text-white" style="font-family:'Inter',system-ui,sans-serif;background:#07090f">
+  <div class="min-h-screen flex" style="font-family:'Inter',system-ui,sans-serif;background:#0e1016;color:#e5e7eb">
 
     <!-- Sidebar -->
-    <aside class="w-56 flex-shrink-0 fixed h-full flex flex-col" style="background:#0b0e16;border-right:1px solid rgba(255,255,255,0.06)">
+    <aside class="w-[220px] flex-shrink-0 fixed h-full flex flex-col" style="background:#111318;border-right:1px solid rgba(255,255,255,0.07)">
 
       <!-- Logo -->
-      <div class="h-14 flex items-center px-5" style="border-bottom:1px solid rgba(255,255,255,0.06)">
-        <Logo :size="28" text-class="text-sm font-semibold text-white" />
+      <div class="h-12 flex items-center px-4 flex-shrink-0" style="border-bottom:1px solid rgba(255,255,255,0.07)">
+        <Logo :size="24" text-class="text-[13px] font-semibold text-white" />
       </div>
 
-      <!-- Org selector -->
-      <div class="px-3 pt-4 pb-2">
-        <div class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer hover:bg-white/4 transition-colors group">
-          <div class="w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-black text-white flex-shrink-0"
-            style="background:linear-gradient(135deg,#2563eb,#7c3aed)">
+      <!-- Org block -->
+      <div class="px-3 pt-3 pb-2 flex-shrink-0">
+        <div class="flex items-center gap-2.5 px-2.5 py-2 rounded" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">
+          <div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+            style="background:#006fff">
             {{ orgInitial }}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-[13px] font-medium text-white leading-none truncate">{{ orgName }}</p>
+            <p class="text-[12px] font-medium text-white leading-none truncate">{{ orgName || '...' }}</p>
             <p class="text-[10px] mt-0.5" style="color:#4b5563">Administrador</p>
           </div>
-          <ChevronUpDownIcon class="w-3.5 h-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style="color:#6b7280" />
         </div>
       </div>
 
       <!-- Divider -->
-      <div class="mx-3 mb-2" style="height:1px;background:rgba(255,255,255,0.05)"></div>
+      <div class="mx-3 mb-1" style="height:1px;background:rgba(255,255,255,0.07)"></div>
 
       <!-- Nav -->
-      <nav class="flex-1 px-3 space-y-0.5 overflow-y-auto py-1">
+      <nav class="flex-1 px-2 py-1 space-y-px overflow-y-auto">
 
         <NavItem v-for="item in mainNav" :key="item.to" v-bind="item" :active="isActive(item.to)" />
 
-        <div class="pt-4 pb-1">
-          <p class="px-2.5 text-[10px] font-semibold uppercase tracking-widest" style="color:#374151">Gestión</p>
+        <div class="pt-3 pb-1 px-1">
+          <p class="text-[10px] font-semibold uppercase tracking-widest" style="color:#374151">Gestión</p>
         </div>
 
         <NavItem v-for="item in mgmtNav" :key="item.to" v-bind="item" :active="isActive(item.to)" />
@@ -41,41 +40,47 @@
       </nav>
 
       <!-- User footer -->
-      <div class="px-3 py-3" style="border-top:1px solid rgba(255,255,255,0.06)">
+      <div class="px-2 py-2 flex-shrink-0" style="border-top:1px solid rgba(255,255,255,0.07)">
         <button @click="handleLogout"
-          class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-white/4 transition-colors group text-left">
-          <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-            style="background:linear-gradient(135deg,#2563eb,#7c3aed)">
+          class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded transition-colors text-left group"
+          style="color:#6b7280"
+          onmouseenter="this.style.background='rgba(255,255,255,0.04)';this.style.color='#9ca3af'"
+          onmouseleave="this.style.background='transparent';this.style.color='#6b7280'">
+          <div class="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
+            style="background:#1d4ed8">
             {{ userInitials }}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-[12px] font-medium leading-none truncate" style="color:#e5e7eb">{{ userEmail }}</p>
+            <p class="text-[11px] leading-none truncate" style="color:#9ca3af">{{ userEmail }}</p>
           </div>
-          <ArrowRightStartOnRectangleIcon class="w-3.5 h-3.5 flex-shrink-0 transition-colors group-hover:text-red-400" style="color:#4b5563" />
+          <ArrowRightStartOnRectangleIcon class="w-3.5 h-3.5 flex-shrink-0" style="color:#4b5563" />
         </button>
       </div>
     </aside>
 
     <!-- Main area -->
-    <div class="ml-56 flex-1 flex flex-col min-h-screen">
+    <div class="ml-[220px] flex-1 flex flex-col min-h-screen">
 
       <!-- Top bar -->
-      <header class="h-14 flex items-center justify-between px-7 flex-shrink-0 sticky top-0 z-10"
-        style="background:rgba(7,9,15,0.85);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.06)">
-        <div class="flex items-center gap-2">
-          <span class="text-sm font-semibold text-white">{{ currentPageTitle }}</span>
-          <ChevronRightIcon class="w-3.5 h-3.5" style="color:#374151" />
-          <span class="text-sm" style="color:#6b7280">{{ orgName }}</span>
+      <header class="h-12 flex items-center justify-between px-6 flex-shrink-0 sticky top-0 z-10"
+        style="background:#0e1016;border-bottom:1px solid rgba(255,255,255,0.07)">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[13px] font-medium text-white">{{ currentPageTitle }}</span>
+          <ChevronRightIcon class="w-3 h-3" style="color:#374151" />
+          <span class="text-[12px]" style="color:#4b5563">{{ orgName }}</span>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg"
-            style="color:#4ade80;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.15)">
+        <div class="flex items-center gap-2.5">
+          <div class="flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded"
+            style="color:#4ade80;background:rgba(74,222,128,0.07);border:1px solid rgba(74,222,128,0.12)">
             <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#4ade80"></span>
-            DNS protegido
+            DNS activo
           </div>
           <div class="relative">
-            <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors">
-              <BellIcon class="w-4 h-4" style="color:#6b7280" />
+            <button class="w-7 h-7 flex items-center justify-center rounded transition-colors"
+              style="color:#6b7280"
+              onmouseenter="this.style.background='rgba(255,255,255,0.05)'"
+              onmouseleave="this.style.background='transparent'">
+              <BellIcon class="w-4 h-4" />
             </button>
             <span v-if="alertCount > 0"
               class="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full text-[9px] font-bold text-white flex items-center justify-center"
@@ -87,7 +92,7 @@
       </header>
 
       <!-- Content -->
-      <main class="flex-1 p-7">
+      <main class="flex-1 p-6">
         <router-view />
       </main>
     </div>
@@ -110,32 +115,21 @@ const NavItem = defineComponent({
   setup(props) {
     return () => h(RouterLink, { to: props.to, class: 'block' }, () =>
       h('div', {
-        class: [
-          'flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] transition-all cursor-pointer',
-          props.active
-            ? 'font-medium'
-            : 'hover:bg-white/4',
-        ].join(' '),
+        class: 'flex items-center gap-2.5 px-2.5 py-[6px] text-[12px] transition-all cursor-pointer relative rounded-[2px]',
         style: props.active
-          ? 'background:rgba(37,99,235,0.12);color:#93c5fd'
-          : 'color:#9ca3af',
+          ? 'background:rgba(0,111,255,0.08);color:#ffffff;border-left:2px solid #006fff;padding-left:8px'
+          : 'color:#6b7280;border-left:2px solid transparent;padding-left:8px',
       }, [
         h(props.icon, {
-          class: 'w-4 h-4 flex-shrink-0',
-          style: props.active ? 'color:#60a5fa' : 'color:#6b7280',
+          class: 'w-[15px] h-[15px] flex-shrink-0',
+          style: props.active ? 'color:#006fff' : 'color:#4b5563',
         }),
-        h('span', { class: 'flex-1' }, props.label),
+        h('span', { class: 'flex-1 font-medium' }, props.label),
         props.badge
           ? h('span', {
-              class: 'text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
-              style: 'background:rgba(239,68,68,0.15);color:#f87171'
+              class: 'text-[10px] font-semibold px-1.5 py-0.5 rounded',
+              style: 'background:rgba(239,68,68,0.12);color:#f87171'
             }, props.badge)
-          : null,
-        props.active
-          ? h('span', {
-              class: 'w-1 h-4 rounded-full flex-shrink-0',
-              style: 'background:#3b82f6'
-            })
           : null,
       ])
     )
