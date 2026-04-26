@@ -1,0 +1,13 @@
+'use strict'
+
+const { contextBridge, ipcRenderer } = require('electron')
+
+contextBridge.exposeInMainWorld('penwinsafe', {
+  navigate: (url) => ipcRenderer.send('navigate', url),
+  goBack: () => ipcRenderer.send('go-back'),
+  goForward: () => ipcRenderer.send('go-forward'),
+  reload: () => ipcRenderer.send('reload'),
+  onUrlChange: (cb) => ipcRenderer.on('url-changed', (_, url) => cb(url)),
+  onTitleChange: (cb) => ipcRenderer.on('title-changed', (_, title) => cb(title)),
+  onLoadingChange: (cb) => ipcRenderer.on('loading-changed', (_, loading) => cb(loading))
+})

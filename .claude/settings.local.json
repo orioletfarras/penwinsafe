@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "Bash(supabase --version)",
+      "Bash(supabase init *)",
+      "Bash(supabase link *)",
+      "Bash(supabase db *)",
+      "Bash(supabase functions *)",
+      "Bash(mkdir -p /Users/oriol/penwinsafe/panel)",
+      "Bash(npm create *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(npm run *)"
+    ]
+  }
+}
