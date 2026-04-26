@@ -1,6 +1,6 @@
 'use strict'
 
-const { app, BrowserWindow, session, ipcMain } = require('electron')
+const { app, BrowserWindow, session, ipcMain, nativeImage } = require('electron')
 const path = require('path')
 const proxy = require('./src/socks-proxy')
 const activation = require('./src/activation')
@@ -14,6 +14,10 @@ let mainWindow = null
 async function createWindow() {
   await proxy.start()
 
+  // Set dock icon (macOS)
+  const icon = nativeImage.createFromPath(path.join(__dirname, 'assets/icon.png'))
+  if (process.platform === 'darwin') app.dock.setIcon(icon)
+
   await session.defaultSession.setProxy({
     proxyRules: `socks5://${proxy.PROXY_HOST}:${proxy.PROXY_PORT}`
   })
@@ -24,6 +28,7 @@ async function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: 'PenwinSafe',
+    icon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
