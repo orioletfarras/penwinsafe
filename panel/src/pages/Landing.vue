@@ -11,13 +11,10 @@
           <a @click.prevent="scrollTo('pricing')"  href="#pricing"  class="hover:text-white transition-colors cursor-pointer">Precios</a>
         </div>
         <div class="flex items-center gap-3">
-          <router-link to="/login" class="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">
-            Entrar
-          </router-link>
-          <a href="mailto:hola@penwin.org"
+          <router-link to="/login"
             class="text-sm font-semibold bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg transition-colors">
-            Demo gratuita
-          </a>
+            Acceder al panel
+          </router-link>
         </div>
       </div>
     </nav>
@@ -52,15 +49,15 @@
               El alumno no puede saltárselo.
             </p>
             <div class="flex flex-col sm:flex-row gap-3">
-              <a href="mailto:hola@penwin.org"
-                class="flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-brand-600/25 text-sm">
-                Solicitar demo gratuita
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </a>
               <router-link to="/login"
-                class="flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 hover:bg-white/5 text-white font-medium px-6 py-3.5 rounded-xl transition-all text-sm">
+                class="flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-brand-600/25 text-sm">
                 Acceder al panel
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </router-link>
+              <a href="mailto:hola@penwin.org"
+                class="flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 hover:bg-white/5 text-white font-medium px-6 py-3.5 rounded-xl transition-all text-sm">
+                Contactar
+              </a>
             </div>
             <!-- Logos/trust -->
             <div class="mt-10 pt-10 border-t border-white/5">
@@ -210,7 +207,7 @@
                   ? 'bg-brand-600 hover:bg-brand-500 text-white hover:shadow-lg hover:shadow-brand-600/25'
                   : 'border border-white/10 hover:border-white/20 hover:bg-white/5 text-white']"
             >
-              Empezar
+              Contactar
             </a>
           </div>
         </div>
@@ -236,7 +233,7 @@
           </p>
           <a href="mailto:hola@penwin.org"
             class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold px-8 py-4 rounded-xl transition-all hover:shadow-xl hover:shadow-brand-600/30 text-sm">
-            Solicitar demo gratuita
+            Contactar con Penwin
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </a>
         </div>
