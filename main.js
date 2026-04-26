@@ -89,9 +89,13 @@ ipcMain.handle('get-filter-config',()                      => telemetry.getFilte
 // IPC: WebRTC signaling
 ipcMain.on('rtc-answer', (_, sessionId, answerSdp) => rtc.submitAnswer(sessionId, answerSdp))
 
-// Heartbeat every 30s while app is running
-setInterval(() => telemetry.heartbeat(), 30000)
+// Heartbeat + browser monitor every 30s
+setInterval(() => {
+  telemetry.heartbeat()
+  telemetry.checkOtherBrowsers()
+}, 30000)
 telemetry.heartbeat()
+telemetry.checkOtherBrowsers()
 
 app.whenReady().then(createWindow)
 

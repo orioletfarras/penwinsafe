@@ -165,6 +165,68 @@ async function logBlocked(url, reason, query) {
   }).catch(() => {})
 }
 
+// Track which browsers have already been alerted this session (reset on restart)
+const alertedBrowsers = new Set()
+
+const BROWSERS = [
+  { name: 'Google Chrome',    patterns: ['Google Chrome', 'chrome', 'Google\\ Chrome'] },
+  { name: 'Firefox',          patterns: ['Firefox', 'firefox'] },
+  { name: 'Safari',           patterns: ['Safari'] },
+  { name: 'Microsoft Edge',   patterns: ['Microsoft Edge', 'msedge', 'Microsoft\\ Edge'] },
+  { name: 'Opera',            patterns: ['Opera', 'opera'] },
+  { name: 'Brave',            patterns: ['Brave Browser', 'brave'] },
+  { name: 'Vivaldi',          patterns: ['Vivaldi', 'vivaldi'] },
+  { name: 'Arc',              patterns: ['Arc'] },
+  { name: 'Tor Browser',      patterns: ['Tor Browser', 'firefox.real'] },
+]
+
+async function checkOtherBrowsers() {
+  const deviceId = getDeviceId()
+  if (!deviceId) return
+
+  const { exec } = require('child_process')
+  const isWin = process.platform === 'win32'
+  const isMac = process.platform === 'darwin'
+
+  const cmd = isWin
+    ? 'tasklist /FO CSV /NH'
+    : 'ps aux'
+
+  exec(cmd, { timeout: 5000 }, async (err, stdout) => {
+    if (err || !stdout) return
+
+    for (const browser of BROWSERS) {
+      const key = browser.name
+      if (alertedBrowsers.has(key)) continue
+
+      const found = browser.patterns.some(p => {
+        if (isWin) return stdout.toLowerCase().includes(p.toLowerCase())
+        // macOS/Linux: exclude our own Electron process and grep itself
+        const lines = stdout.split('\n').filter(l =>
+          l.toLowerCase().includes(p.toLowerCase()) &&
+          !l.includes('Electron') &&
+          !l.includes('penwinsafe') &&
+          !l.includes('grep') &&
+          !l.includes('node ')
+        )
+        return lines.length > 0
+      })
+
+      if (found) {
+        alertedBrowsers.add(key)
+        const deviceName = getDeviceName()
+        console.log(`[monitor] other browser detected: ${browser.name} on ${deviceName}`)
+        await supabase.from('alerts').insert({
+          device_id: deviceId,
+          type: 'concerning_search',
+          severity: 'danger',
+          message: `${browser.name} abierto en ${deviceName} — posible evasión del filtro`,
+        }).catch(() => {})
+      }
+    }
+  })
+}
+
 async function heartbeat() {
   const deviceId = getDeviceId()
   if (!deviceId) return
@@ -188,4 +250,4 @@ async function heartbeat() {
   await fetchFilterConfig()
 }
 
-module.exports = { logUrl, logSearch, logBlocked, heartbeat, getFilterConfig }
+module.exports = { logUrl, logSearch, logBlocked, heartbeat, getFilterConfig, checkOtherBrowsers }
