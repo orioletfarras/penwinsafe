@@ -6,9 +6,9 @@
       <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Logo />
         <div class="hidden md:flex items-center gap-8 text-sm text-gray-500">
-          <a href="#features"  class="hover:text-white transition-colors">Funcionalidades</a>
-          <a href="#how"       class="hover:text-white transition-colors">Cómo funciona</a>
-          <a href="#pricing"   class="hover:text-white transition-colors">Precios</a>
+          <a @click.prevent="scrollTo('features')" href="#features" class="hover:text-white transition-colors cursor-pointer">Funcionalidades</a>
+          <a @click.prevent="scrollTo('how')"      href="#how"      class="hover:text-white transition-colors cursor-pointer">Cómo funciona</a>
+          <a @click.prevent="scrollTo('pricing')"  href="#pricing"  class="hover:text-white transition-colors cursor-pointer">Precios</a>
         </div>
         <div class="flex items-center gap-3">
           <router-link to="/login" class="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">
@@ -257,6 +257,10 @@
 <script setup>
 import Logo from '../components/Logo.vue'
 import BrowserMockup from '../components/BrowserMockup.vue'
+
+function scrollTo(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 const stats = [
   { value: '100%', label: 'Tráfico DNS filtrado' },
