@@ -57,19 +57,27 @@
       </div>
       <div class="p-5">
         <div class="flex items-center gap-3">
-          <div class="flex-1 px-4 py-3 rounded-lg font-mono text-lg font-bold tracking-widest text-white text-center"
-            style="background:#0d1117;border:1px solid rgba(255,255,255,0.08);letter-spacing:0.3em">
+          <div class="flex-1 px-4 py-3 rounded-lg font-mono text-2xl font-black text-white text-center tracking-widest"
+            style="background:#0d1117;border:1px solid rgba(255,255,255,0.08)">
             {{ centerCode || '———' }}
           </div>
-          <button @click="copyCode"
-            class="flex items-center gap-2 text-sm font-medium px-4 py-3 rounded-lg transition-colors"
-            style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#9ca3af">
-            <ClipboardDocumentIcon class="w-4 h-4" />
-            {{ copied ? 'Copiado' : 'Copiar' }}
-          </button>
+          <div class="flex flex-col gap-2">
+            <button @click="copyCode"
+              class="flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#9ca3af">
+              <ClipboardDocumentIcon class="w-3.5 h-3.5" />
+              {{ copied ? '¡Copiado!' : 'Copiar' }}
+            </button>
+            <button @click="regenerateCode" :disabled="regenerating"
+              class="flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#9ca3af">
+              <ArrowPathIcon class="w-3.5 h-3.5" :class="regenerating ? 'animate-spin' : ''" />
+              Nuevo código
+            </button>
+          </div>
         </div>
         <p class="text-xs mt-3" style="color:#4b5563">
-          Este código identifica tu centro. Cada dispositivo con PenwinSafe lo usará una sola vez para vincularse automáticamente.
+          Introduce este código al instalar PenwinSafe en un dispositivo. Si lo regeneras, los dispositivos no vinculados deberán usar el nuevo.
         </p>
       </div>
     </section>
@@ -107,7 +115,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { supabase } from '../../lib/supabase'
-import { ClipboardDocumentIcon } from '@heroicons/vue/24/outline'
+import { ClipboardDocumentIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 
 const orgName     = ref('')
 const orgId       = ref('')
@@ -119,6 +127,7 @@ const saving      = ref(false)
 const savedMsg    = ref('')
 const pwMsg       = ref('')
 const copied      = ref(false)
+const regenerating = ref(false)
 
 const filterLevels = [
   { value: 'family',   label: 'Family Filter',   desc: 'Bloquea contenido adulto, proxies y anuncios. Recomendado para primaria.' },
@@ -171,5 +180,16 @@ async function copyCode() {
   await navigator.clipboard.writeText(centerCode.value)
   copied.value = true
   setTimeout(() => copied.value = false, 2000)
+}
+
+async function regenerateCode() {
+  if (!orgId.value) return
+  regenerating.value = true
+  const { data, error } = await supabase.rpc('generate_center_code')
+  if (!error && data) {
+    await supabase.from('organizations').update({ center_code: data }).eq('id', orgId.value)
+    centerCode.value = data
+  }
+  regenerating.value = false
 }
 </script>
