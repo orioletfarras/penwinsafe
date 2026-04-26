@@ -27,8 +27,15 @@ async function createWindow() {
 
   // Auto-grant screen capture for WebRTC live view
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
-    const sources = await desktopCapturer.getSources({ types: ['screen'] })
-    callback({ video: sources[0] || null })
+    try {
+      const sources = await desktopCapturer.getSources({ types: ['screen'] })
+      console.log('[rtc] desktopCapturer sources:', sources.map(s => s.name))
+      if (sources.length > 0) callback({ video: sources[0] })
+      else callback({})
+    } catch (e) {
+      console.error('[rtc] desktopCapturer error:', e.message)
+      callback({})
+    }
   })
 
   mainWindow = new BrowserWindow({
@@ -43,7 +50,7 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
-      devTools: false
+      devTools: true
     }
   })
 

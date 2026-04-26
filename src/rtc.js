@@ -14,25 +14,31 @@ let channel = null
 function init(win) {
   mainWin = win
   const deviceId = activation.loadActivation()?.deviceId
-  if (!deviceId) return
+  if (!deviceId) { console.log('[rtc] no deviceId, skipping init'); return }
 
+  console.log('[rtc] init for device', deviceId)
   if (channel) { supabase.removeChannel(channel); channel = null }
 
   channel = supabase.channel(`device-rtc:${deviceId}`, { config: { broadcast: { ack: false } } })
   channel
     .on('broadcast', { event: 'request-stream' }, () => {
+      console.log('[rtc] received request-stream, sending rtc-start to renderer')
       mainWin?.webContents.send('rtc-start')
     })
     .on('broadcast', { event: 'answer' }, ({ payload }) => {
+      console.log('[rtc] received answer from panel')
       mainWin?.webContents.send('rtc-remote-desc', payload.sdp)
     })
     .on('broadcast', { event: 'ice-panel' }, ({ payload }) => {
       mainWin?.webContents.send('rtc-remote-ice', payload.candidate)
     })
-    .subscribe()
+    .subscribe((status, err) => {
+      console.log('[rtc] channel status:', status, err || '')
+    })
 }
 
 function sendOffer(sdp) {
+  console.log('[rtc] sending offer to panel')
   channel?.send({ type: 'broadcast', event: 'offer', payload: { sdp } })
 }
 

@@ -358,11 +358,15 @@
     let rtcPc = null
 
     function initRtc() {
+      console.log('[rtc] initRtc called')
       window.penwinsafe.onRtcStart(async () => {
+        console.log('[rtc] onRtcStart fired')
         try {
           if (rtcPc) { rtcPc.close(); rtcPc = null }
 
+          console.log('[rtc] calling getDisplayMedia...')
           const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+          console.log('[rtc] got stream:', stream.getTracks().map(t => t.kind))
 
           rtcPc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
           stream.getTracks().forEach(t => rtcPc.addTrack(t, stream))
@@ -372,6 +376,7 @@
           }
 
           window.penwinsafe.onRtcRemoteDesc(async sdp => {
+            console.log('[rtc] setting remote desc (answer)')
             await rtcPc.setRemoteDescription({ type: 'answer', sdp })
           })
 
@@ -381,8 +386,9 @@
 
           const offer = await rtcPc.createOffer()
           await rtcPc.setLocalDescription(offer)
+          console.log('[rtc] sending offer')
           window.penwinsafe.rtcSendOffer(offer.sdp)
-        } catch (e) { console.error('[rtc] error:', e) }
+        } catch (e) { console.error('[rtc] error in onRtcStart:', e.message, e) }
       })
     }
 
