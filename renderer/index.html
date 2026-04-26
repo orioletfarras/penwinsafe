@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https: data:">
   <title>PenwinSafe</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -352,13 +352,58 @@
       initBrowser()
     }
 
-    // ── Keyword blocklist ───────────────────────────────────
-    const BLOCKED_KEYWORDS = [
-      'porn','porno','pornografia','pornography','xxx','hentai','sexo','sex ',
-      'nude','desnudo','desnuda','erotic','erotico','onlyfans','xvideos',
-      'pornhub','redtube','xnxx','xhamster','youporn','brazzers',
-      'escorts','prostitutas','prostitution','stripper',
-    ]
+    // ── Keyword blocklist (por categorías) ──────────────────
+    const BLOCKED_CATEGORIES = {
+      pornografia: [
+        'porn','porno','pornografia','pornography','xxx','hentai',
+        'xvideos','pornhub','redtube','xnxx','xhamster','youporn','brazzers',
+        'fakings','bangbros','naughtyamerica','realitykings','mofos',
+        'digitalplayground','twistys','babes.com','girlsdoporn',
+        // actrices/actores conocidos
+        'mia khalifa','lana rhoades','riley reid','johnny sins',
+        'lisa ann','sunny leone','alexis texas','madison ivy',
+        'dillion harper','phoenix marie','jessica jaymes','jenna jameson',
+        'stormy daniels','august ames','eva lovia','abella danger',
+        'elsa jean','adriana chechik','angela white','sasha grey',
+      ],
+      contenido_adulto: [
+        'sexo','sex tape','nude','desnudo','desnuda','desnudos','desnudas',
+        'erotic','erotico','erotica','onlyfans','stripper','escort',
+        'prostitutas','prostitution','camgirl','cam girl','webcam sex',
+        'sexting','nudes','tetas','polla','vagina','pene','coño','follar',
+        'corrida','mamada','orgasmo','masturbacion','masturbate',
+        'fetish','bdsm','bondage','dominatrix','milf','threesome',
+      ],
+      violencia: [
+        'snuff','gore','liveleak murder','beheading video','torture video',
+        'kill video','murder video','execution video','decapitation',
+      ],
+      drogas: [
+        'como comprar droga','comprar cocaina','comprar heroina','dealer droga',
+        'comprar speed','comprar mdma online','como hacer droga',
+        'buy weed online','buy cocaine','buy heroin','darknet drugs',
+        'silkroad drugs','drug marketplace',
+      ],
+      apuestas: [
+        'casino online','apuestas deportivas','bet365','pokerstars',
+        'ruleta online','poker real money','tragaperras','slot machine dinero',
+      ],
+      odio: [
+        'nazismo','neo nazi','white supremacy','kkk','ku klux klan',
+        'racism propaganda','odio racial','matar inmigrantes',
+      ],
+    }
+
+    // Flat list for matching
+    const BLOCKED_KEYWORDS = Object.values(BLOCKED_CATEGORIES).flat()
+
+    function getCategory(query) {
+      const q = query.toLowerCase()
+      for (const [cat, words] of Object.entries(BLOCKED_CATEGORIES)) {
+        if (words.some(kw => q.includes(kw))) return cat
+      }
+      return 'otros'
+    }
 
     function extractSearchQuery(url) {
       try {
@@ -379,41 +424,61 @@
       return BLOCKED_KEYWORDS.some(kw => q.includes(kw))
     }
 
-    function blockedPageHTML(query) {
-      return `data:text/html,<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><title>Contenido bloqueado</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    background:#f4f5f7;display:flex;align-items:center;justify-content:center;min-height:100vh}
-  .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:48px;
-    text-align:center;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
-  .icon{width:56px;height:56px;background:#fef2f2;border-radius:50%;display:flex;
-    align-items:center;justify-content:center;margin:0 auto 20px}
-  h2{font-size:18px;font-weight:700;color:#111827;margin-bottom:8px}
-  p{font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:4px}
-  .query{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;
-    color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:4px 12px}
-  .badge{display:inline-flex;align-items:center;gap:6px;margin-top:20px;font-size:11px;
-    color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:4px 12px}
-  .dot{width:6px;height:6px;border-radius:50%;background:#16a34a}
-</style></head>
+    const BLOCKED_PAGE_STYLE = `
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+        background:#f4f5f7;display:flex;align-items:center;justify-content:center;min-height:100vh}
+      .card{background:#fff;border:1px solid #fecaca;border-radius:12px;padding:48px;
+        text-align:center;max-width:440px;box-shadow:0 4px 20px rgba(220,38,38,.08)}
+      .shield{width:64px;height:64px;background:#fef2f2;border-radius:50%;display:flex;
+        align-items:center;justify-content:center;margin:0 auto 20px;border:2px solid #fecaca}
+      h2{font-size:18px;font-weight:700;color:#111827;margin-bottom:10px}
+      .sub{font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:16px}
+      .tag{display:inline-block;font-size:12px;font-weight:600;
+        color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;
+        padding:5px 14px;margin-bottom:20px;word-break:break-all;max-width:100%}
+      .notice{font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;
+        border-radius:8px;padding:10px 14px;margin-bottom:20px;line-height:1.5}
+      .badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+        color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:5px 12px}
+      .dot{width:6px;height:6px;border-radius:50%;background:#16a34a}
+    `
+
+    function blockedPageHTML(query, type) {
+      const isKeyword = type !== 'dns'
+      const title = isKeyword ? 'Búsqueda bloqueada' : 'Acceso bloqueado'
+      const label = isKeyword ? `"${query}"` : query
+      const reason = isKeyword
+        ? 'Esta búsqueda contiene términos no permitidos en este centro escolar.'
+        : 'Este sitio web está bloqueado por la política de filtrado del centro escolar.'
+      return `data:text/html;charset=utf-8,<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><title>${title}</title>
+<style>${BLOCKED_PAGE_STYLE}</style></head>
 <body><div class="card">
-  <div class="icon">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2L2 7v7c0 5.25 4.3 10.15 10 11.35C17.7 24.15 22 19.25 22 14V7L12 2z" fill="#dc2626"/>
+  <div class="shield">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L3 6.5V12c0 5.25 3.9 10.15 9 11.35C17.1 22.15 21 17.25 21 12V6.5L12 2z" fill="#dc2626"/>
       <path d="M15 9l-6 6M9 9l6 6" stroke="white" stroke-width="2" stroke-linecap="round"/>
     </svg>
   </div>
-  <h2>Contenido bloqueado</h2>
-  <p>Esta búsqueda contiene términos no permitidos en el centro escolar.</p>
-  <div class="query">"${query}"</div>
-  <br>
-  <p style="font-size:12px">Si crees que es un error, consulta con tu profesor.</p>
+  <h2>${title}</h2>
+  <p class="sub">${reason}</p>
+  <div class="tag">${label}</div>
+  <div class="notice">
+    Tu consulta ha sido registrada y notificada al administrador del centro.<br>
+    Si crees que es un error, consulta con tu profesor.
+  </div>
   <div class="badge"><span class="dot"></span>PenwinSafe — Filtrado activo</div>
 </div></body></html>`
     }
+
+    function domainBlockedHTML(url) {
+      let domain = url
+      try { domain = new URL(url).hostname } catch {}
+      return blockedPageHTML(domain, 'dns')
+    }
+
+    let currentTitle = ''
 
     function initBrowser() {
       const wv = document.getElementById('wv')
@@ -429,7 +494,8 @@
         if (BLOCKED_SCHEMES.includes(scheme.toLowerCase())) return
         const query = extractSearchQuery(normalized)
         if (isBlockedQuery(query)) {
-          wv.src = blockedPageHTML(query)
+          window.penwinsafe.logBlocked(normalized, 'keyword_filter', query)
+          wv.src = blockedPageHTML(query, 'keyword')
           return
         }
         wv.src = normalized
@@ -447,22 +513,34 @@
         addressBar.value = e.url
         btnBack.disabled = !wv.canGoBack()
         btnForward.disabled = !wv.canGoForward()
-        // Intercept mid-navigation (e.g. clicking a link)
+
         const query = extractSearchQuery(e.url)
         if (isBlockedQuery(query)) {
-          wv.src = blockedPageHTML(query)
+          window.penwinsafe.logBlocked(e.url, 'keyword_filter', query)
+          wv.src = blockedPageHTML(query, 'keyword')
+          return
         }
+
+        // Log search query
+        if (query) window.penwinsafe.logSearch(query, e.url)
+
+        // Log URL visit
+        window.penwinsafe.logUrl(e.url, currentTitle)
       })
 
       wv.addEventListener('did-navigate-in-page', (e) => {
         addressBar.value = e.url
         const query = extractSearchQuery(e.url)
         if (isBlockedQuery(query)) {
-          wv.src = blockedPageHTML(query)
+          window.penwinsafe.logBlocked(e.url, 'keyword_filter', query)
+          wv.src = blockedPageHTML(query, 'keyword')
+          return
         }
+        if (query) window.penwinsafe.logSearch(query, e.url)
       })
 
       wv.addEventListener('page-title-updated', (e) => {
+        currentTitle = e.title
         document.title = `${e.title} — PenwinSafe`
       })
 
@@ -475,6 +553,24 @@
         loadingBar.style.width = '0%'
       })
 
+      // DNS-blocked or unreachable sites → show custom blocked page
+      wv.addEventListener('did-fail-load', (e) => {
+        const { errorCode, validatedURL } = e
+        // -3 = navigation aborted (normal), 0 = success, ignore those
+        if (errorCode === -3 || errorCode === 0) return
+        // -105 = ERR_NAME_NOT_RESOLVED (DNS block / NXDOMAIN)
+        // -102 = ERR_CONNECTION_REFUSED, -101 = ERR_CONNECTION_RESET
+        const dnsBlocked = [
+          -105, // ERR_NAME_NOT_RESOLVED
+          -106, // ERR_INTERNET_DISCONNECTED — skip, legit
+          -21,  // ERR_NETWORK_ACCESS_DENIED
+        ]
+        if (errorCode === -105 || errorCode === -21) {
+          window.penwinsafe.logBlocked(validatedURL, 'dns_filter', null)
+          wv.src = domainBlockedHTML(validatedURL)
+        }
+      })
+
       wv.addEventListener('will-navigate', (e) => {
         const scheme = (e.url || '').split(':')[0].toLowerCase() + ':'
         if (BLOCKED_SCHEMES.includes(scheme)) {
@@ -484,7 +580,8 @@
         const query = extractSearchQuery(e.url)
         if (isBlockedQuery(query)) {
           e.preventDefault()
-          wv.src = blockedPageHTML(query)
+          window.penwinsafe.logBlocked(e.url, 'keyword_filter', query)
+          wv.src = blockedPageHTML(query, 'keyword')
         }
       })
 
