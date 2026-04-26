@@ -63,7 +63,7 @@
             <div class="mt-10 pt-10 border-t border-white/5">
               <p class="text-xs text-gray-600 mb-4 uppercase tracking-widest">Tecnología de confianza</p>
               <div class="flex items-center gap-6 flex-wrap">
-                <span class="text-xs text-gray-500 font-medium">CleanBrowsing DNS</span>
+                <span class="text-xs text-gray-500 font-medium">PenwinSafe DNS Filter</span>
                 <span class="text-gray-700">·</span>
                 <span class="text-xs text-gray-500 font-medium">Cloudflare TURN</span>
                 <span class="text-gray-700">·</span>
@@ -112,7 +112,7 @@
             </div>
             <h3 class="text-xl font-bold mb-3">Filtrado DNS permanente</h3>
             <p class="text-gray-400 leading-relaxed">
-              Todo el tráfico DNS se resuelve a través de CleanBrowsing Family Filter mediante un proxy SOCKS5 local.
+              Todo el tráfico DNS se resuelve a través del filtro PenwinSafe mediante un proxy local seguro.
               El alumno no puede desactivarlo, cambiarlo ni saltárselo. Funciona incluso en redes WiFi externas.
             </p>
           </div>
@@ -296,7 +296,7 @@ const plans = [
   {
     name: 'Básico', price: '2€', sub: 'Para centros pequeños',
     featured: false,
-    features: ['Filtrado DNS CleanBrowsing', 'Historial de URLs y búsquedas', 'Bloqueo remoto instantáneo', 'Hasta 30 dispositivos']
+    features: ['Filtrado DNS PenwinSafe', 'Historial de URLs y búsquedas', 'Bloqueo remoto instantáneo', 'Hasta 30 dispositivos']
   },
   {
     name: 'Escolar', price: '3€', sub: 'El más completo para colegios',

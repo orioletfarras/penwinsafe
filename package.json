@@ -1,7 +1,7 @@
 {
   "name": "penwinsafe",
   "version": "1.0.0",
-  "description": "Navegador seguro con filtrado DNS permanente vía CleanBrowsing",
+  "description": "Navegador seguro con filtrado DNS permanente vía PenwinSafe",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

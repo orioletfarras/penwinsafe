@@ -55,7 +55,7 @@ function handleClient(client) {
       try {
         let targetIP = hostname
 
-        // Only resolve domain names through CleanBrowsing DoH
+        // Only resolve domain names through PenwinSafe DoH
         if (atyp === ATYP_DOMAIN) {
           targetIP = await resolve(hostname)
         }
