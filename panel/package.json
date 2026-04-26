@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@heroicons/vue": "^2.2.0",
     "@supabase/supabase-js": "^2.104.1",
     "@vueuse/core": "^14.2.1",
     "lucide-vue-next": "^1.0.0",
