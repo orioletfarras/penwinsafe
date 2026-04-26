@@ -85,16 +85,49 @@
       </table>
     </div>
   </div>
+
+  <!-- Modal vista en vivo -->
+  <Teleport to="body">
+    <div v-if="liveDevice" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7);backdrop-filter:blur(8px)">
+      <div class="w-full max-w-2xl rounded-2xl border border-white/10 overflow-hidden" style="background:#0b0e16">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-white/6">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              <span class="text-sm font-semibold text-white">{{ liveDevice.name }}</span>
+            </div>
+            <span class="text-xs px-2 py-0.5 rounded-md" style="background:rgba(37,99,235,0.1);color:#93c5fd">En vivo</span>
+          </div>
+          <button @click="liveDevice = null" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors">
+            <XMarkIcon class="w-4 h-4" style="color:#6b7280" />
+          </button>
+        </div>
+        <div class="p-6 text-center space-y-4" style="min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto" style="background:rgba(37,99,235,0.1)">
+            <SignalIcon class="w-7 h-7" style="color:#3b82f6" />
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-white mb-1">Vista en vivo disponible próximamente</p>
+            <p class="text-xs" style="color:#6b7280">La conexión WebRTC con Cloudflare TURN está en desarrollo.<br>Podrás ver la pantalla del alumno en tiempo real.</p>
+          </div>
+          <div class="text-xs px-3 py-2 rounded-lg" style="background:rgba(255,255,255,0.04);color:#4b5563">
+            Dispositivo: {{ liveDevice.name }} · IP: {{ liveDevice.ip_address }} · {{ liveDevice.os_info }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../../lib/supabase'
-import { MagnifyingGlassIcon, ComputerDesktopIcon } from '@heroicons/vue/24/outline'
+import { MagnifyingGlassIcon, ComputerDesktopIcon, XMarkIcon, SignalIcon } from '@heroicons/vue/24/outline'
 
 const devices      = ref([])
 const search       = ref('')
 const filterStatus = ref('')
+const liveDevice   = ref(null)
 
 const onlineCount = computed(() => devices.value.filter(d => d.status === 'online').length)
 
@@ -124,7 +157,7 @@ async function toggleLock(device) {
   device.status = newStatus
 }
 
-function watchLive(d) { alert(`Vista en vivo: ${d.name} — próximamente`) }
+function watchLive(d) { liveDevice.value = d }
 function statusDot(s)   { return { online: 'bg-green-400', offline: 'bg-gray-600', locked: 'bg-red-400' }[s] }
 function statusText(s)  { return { online: 'text-green-400', offline: 'text-gray-500', locked: 'text-red-400' }[s] }
 function statusLabel(s) { return { online: 'Online', offline: 'Offline', locked: 'Bloqueado' }[s] || s }

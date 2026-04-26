@@ -18,7 +18,8 @@
       "Bash(vercel *)",
       "Bash(mkdir -p /Users/oriol/penwinsafe/scripts)",
       "Bash(node scripts/seed-demo.js)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(2>&1)"
     ]
   }
 }
