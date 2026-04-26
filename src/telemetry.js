@@ -141,6 +141,7 @@ async function logBlocked(url, reason, query) {
     url: logUrl,
     domain,
     reason,
+    query: query || null,
     blocked_at: new Date().toISOString(),
   })
   if (error) console.error('[telemetry] logBlocked insert error:', error.message)

@@ -249,11 +249,16 @@
                   <NoSymbolIcon class="w-3 h-3" style="color:#dc2626" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-[11px] font-medium truncate" style="color:#111827">{{ e.domain }}</p>
+                  <p class="text-[11px] font-medium truncate" style="color:#111827">
+                    {{ e.query || e.domain }}
+                  </p>
                   <div class="flex items-center gap-2 mt-0.5">
                     <span class="text-[9px] px-1.5 py-0.5 rounded font-medium"
                       style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca">
                       {{ reasonLabel(e.reason) }}
+                    </span>
+                    <span v-if="e.query && e.domain !== 'search'" class="text-[9px] truncate" style="color:#9ca3af">
+                      {{ e.domain }}
                     </span>
                   </div>
                 </div>
