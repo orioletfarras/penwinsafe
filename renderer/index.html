@@ -416,7 +416,7 @@
     function isBlockedQuery(query) {
       if (!query) return false
       const q = query.toLowerCase()
-      return BLOCKED_KEYWORDS.some(kw => q.includes(kw))
+      return activeBlocklist.some(kw => q.includes(kw))
     }
 
     function blockedPageURL(term, type) {
