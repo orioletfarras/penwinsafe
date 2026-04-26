@@ -111,18 +111,19 @@ async function logSearch(query, url) {
 
 async function logBlocked(url, reason, query) {
   const deviceId = getDeviceId()
-  if (!deviceId) return
+  if (!deviceId) { console.warn('[telemetry] logBlocked: no deviceId, skipping'); return }
 
   const logUrl = url && !url.startsWith('data:') ? url : `search:${query}`
   const domain = extractDomain(logUrl.startsWith('search:') ? 'search' : logUrl)
 
-  await supabase.from('blocked_events').insert({
+  const { error } = await supabase.from('blocked_events').insert({
     device_id: deviceId,
     url: logUrl,
     domain,
     reason,
     blocked_at: new Date().toISOString(),
   })
+  if (error) console.error('[telemetry] logBlocked insert error:', error.message)
 
   // Fire-and-forget tutor notification
   supabase.functions.invoke('notify-blocked', {
