@@ -352,6 +352,69 @@
       initBrowser()
     }
 
+    // ── Keyword blocklist ───────────────────────────────────
+    const BLOCKED_KEYWORDS = [
+      'porn','porno','pornografia','pornography','xxx','hentai','sexo','sex ',
+      'nude','desnudo','desnuda','erotic','erotico','onlyfans','xvideos',
+      'pornhub','redtube','xnxx','xhamster','youporn','brazzers',
+      'escorts','prostitutas','prostitution','stripper',
+    ]
+
+    function extractSearchQuery(url) {
+      try {
+        const u = new URL(url)
+        const h = u.hostname.replace('www.', '')
+        if (h === 'google.com' || h.startsWith('google.')) return u.searchParams.get('q')
+        if (h === 'bing.com') return u.searchParams.get('q')
+        if (h === 'duckduckgo.com') return u.searchParams.get('q')
+        if (h === 'youtube.com') return u.searchParams.get('search_query') || u.searchParams.get('q')
+        if (h === 'yahoo.com') return u.searchParams.get('p')
+      } catch {}
+      return null
+    }
+
+    function isBlockedQuery(query) {
+      if (!query) return false
+      const q = query.toLowerCase()
+      return BLOCKED_KEYWORDS.some(kw => q.includes(kw))
+    }
+
+    function blockedPageHTML(query) {
+      return `data:text/html,<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Contenido bloqueado</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:#f4f5f7;display:flex;align-items:center;justify-content:center;min-height:100vh}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:48px;
+    text-align:center;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+  .icon{width:56px;height:56px;background:#fef2f2;border-radius:50%;display:flex;
+    align-items:center;justify-content:center;margin:0 auto 20px}
+  h2{font-size:18px;font-weight:700;color:#111827;margin-bottom:8px}
+  p{font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:4px}
+  .query{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;
+    color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:4px 12px}
+  .badge{display:inline-flex;align-items:center;gap:6px;margin-top:20px;font-size:11px;
+    color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:4px 12px}
+  .dot{width:6px;height:6px;border-radius:50%;background:#16a34a}
+</style></head>
+<body><div class="card">
+  <div class="icon">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L2 7v7c0 5.25 4.3 10.15 10 11.35C17.7 24.15 22 19.25 22 14V7L12 2z" fill="#dc2626"/>
+      <path d="M15 9l-6 6M9 9l6 6" stroke="white" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <h2>Contenido bloqueado</h2>
+  <p>Esta búsqueda contiene términos no permitidos en el centro escolar.</p>
+  <div class="query">"${query}"</div>
+  <br>
+  <p style="font-size:12px">Si crees que es un error, consulta con tu profesor.</p>
+  <div class="badge"><span class="dot"></span>PenwinSafe — Filtrado activo</div>
+</div></body></html>`
+    }
+
     function initBrowser() {
       const wv = document.getElementById('wv')
       const addressBar = document.getElementById('address-bar')
@@ -364,6 +427,11 @@
         const normalized = normalizeUrl(url)
         const scheme = normalized.split(':')[0] + ':'
         if (BLOCKED_SCHEMES.includes(scheme.toLowerCase())) return
+        const query = extractSearchQuery(normalized)
+        if (isBlockedQuery(query)) {
+          wv.src = blockedPageHTML(query)
+          return
+        }
         wv.src = normalized
       }
 
@@ -379,10 +447,19 @@
         addressBar.value = e.url
         btnBack.disabled = !wv.canGoBack()
         btnForward.disabled = !wv.canGoForward()
+        // Intercept mid-navigation (e.g. clicking a link)
+        const query = extractSearchQuery(e.url)
+        if (isBlockedQuery(query)) {
+          wv.src = blockedPageHTML(query)
+        }
       })
 
       wv.addEventListener('did-navigate-in-page', (e) => {
         addressBar.value = e.url
+        const query = extractSearchQuery(e.url)
+        if (isBlockedQuery(query)) {
+          wv.src = blockedPageHTML(query)
+        }
       })
 
       wv.addEventListener('page-title-updated', (e) => {
@@ -400,7 +477,15 @@
 
       wv.addEventListener('will-navigate', (e) => {
         const scheme = (e.url || '').split(':')[0].toLowerCase() + ':'
-        if (BLOCKED_SCHEMES.includes(scheme)) e.preventDefault()
+        if (BLOCKED_SCHEMES.includes(scheme)) {
+          e.preventDefault()
+          return
+        }
+        const query = extractSearchQuery(e.url)
+        if (isBlockedQuery(query)) {
+          e.preventDefault()
+          wv.src = blockedPageHTML(query)
+        }
       })
 
       navigate(HOME)
