@@ -27,7 +27,10 @@
       "Bash(git commit *)",
       "Bash(rsvg-convert -w 512 -h 512 /Users/oriol/penwinsafe/assets/icon.svg -o /Users/oriol/penwinsafe/assets/icon.png)",
       "Bash(convert -background none -size 512x512 /Users/oriol/penwinsafe/assets/icon.svg /Users/oriol/penwinsafe/assets/icon.png)",
-      "Bash(qlmanage -t -s 512 -o /Users/oriol/penwinsafe/assets /Users/oriol/penwinsafe/assets/icon.svg)"
+      "Bash(qlmanage -t -s 512 -o /Users/oriol/penwinsafe/assets /Users/oriol/penwinsafe/assets/icon.svg)",
+      "Bash(python3 -c \"import cairosvg; print\\('ok'\\)\")",
+      "Bash(python3 -c \"from PIL import Image; print\\('pillow ok'\\)\")",
+      "Bash(brew list *)"
     ]
   }
 }
