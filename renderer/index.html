@@ -370,14 +370,15 @@
     async function refreshBlocklist() {
       try {
         const cfg = await window.penwinsafe.getFilterConfig()
-        if (!cfg) return
-        activeCategories = cfg.activeCategories || Object.keys(BUILTIN)
-        // Merge built-in + custom words for active categories only
+        // Always keep built-ins — only extend with server config
+        const cats = cfg?.activeCategories?.length ? cfg.activeCategories : Object.keys(BUILTIN)
         const merged = {}
-        for (const cat of activeCategories) {
-          merged[cat] = [...(BUILTIN[cat] || []), ...(cfg.customWords?.[cat] || [])]
+        for (const cat of cats) {
+          merged[cat] = [...(BUILTIN[cat] || []), ...(cfg?.customWords?.[cat] || [])]
         }
-        activeBlocklist = Object.values(merged).flat()
+        const newList = Object.values(merged).flat()
+        // Never replace with empty list
+        if (newList.length > 0) activeBlocklist = newList
       } catch {}
     }
 
