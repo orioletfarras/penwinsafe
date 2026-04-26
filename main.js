@@ -87,8 +87,7 @@ ipcMain.handle('log-blocked',      (_, url, reason, query) => telemetry.logBlock
 ipcMain.handle('get-filter-config',()                      => telemetry.getFilterConfig())
 
 // IPC: WebRTC signaling
-ipcMain.on('rtc-send-offer', (_, sdp) => rtc.sendOffer(sdp))
-ipcMain.on('rtc-send-ice',   (_, candidate) => rtc.sendIce(candidate))
+ipcMain.on('rtc-answer', (_, sessionId, answerSdp) => rtc.submitAnswer(sessionId, answerSdp))
 
 // Heartbeat every 30s while app is running
 setInterval(() => telemetry.heartbeat(), 30000)

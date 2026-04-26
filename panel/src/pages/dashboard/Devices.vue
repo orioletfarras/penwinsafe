@@ -444,39 +444,41 @@ async function startLive(d) {
     if (liveVideoEl.value) liveVideoEl.value.srcObject = e.streams[0]
   }
 
-  pc.onicecandidate = ({ candidate }) => {
-    if (candidate) {
-      liveChannel.value?.send({ type: 'broadcast', event: 'ice-panel', payload: { candidate: candidate.toJSON() } })
-    }
-  }
+  // Create offer — wait for ICE gathering before inserting
+  const offer = await pc.createOffer()
+  await pc.setLocalDescription(offer)
+  await new Promise(resolve => {
+    if (pc.iceGatheringState === 'complete') return resolve()
+    pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') resolve() }
+    setTimeout(resolve, 4000)
+  })
 
-  // Timeout → error if no stream in 15s
+  // Insert session with complete offer SDP
+  const { data: session, error } = await supabase
+    .from('rtc_sessions')
+    .insert({ device_id: d.id, admin_id: (await supabase.auth.getUser()).data.user.id, offer_sdp: pc.localDescription.sdp, status: 'pending' })
+    .select('id').single()
+
+  if (error || !session) { liveStatus.value = 'error'; return }
+
+  // Timeout
   const timeout = setTimeout(() => {
     if (liveStatus.value === 'connecting') liveStatus.value = 'error'
-  }, 15000)
+  }, 30000)
 
-  const ch = supabase.channel(`device-rtc:${d.id}`, { config: { broadcast: { ack: false } } })
+  // Listen for answer via Realtime postgres_changes
+  const ch = supabase.channel(`rtc-answer-${session.id}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rtc_sessions', filter: `id=eq.${session.id}` },
+      async (payload) => {
+        if (payload.new.status === 'active' && payload.new.answer_sdp) {
+          clearTimeout(timeout)
+          try {
+            await pc.setRemoteDescription({ type: 'answer', sdp: payload.new.answer_sdp })
+          } catch (e) { liveStatus.value = 'error' }
+        }
+      })
+    .subscribe()
   liveChannel.value = ch
-
-  ch.on('broadcast', { event: 'offer' }, async ({ payload }) => {
-    clearTimeout(timeout)
-    try {
-      await pc.setRemoteDescription({ type: 'offer', sdp: payload.sdp })
-      const answer = await pc.createAnswer()
-      await pc.setLocalDescription(answer)
-      ch.send({ type: 'broadcast', event: 'answer', payload: { sdp: answer.sdp } })
-    } catch (e) { liveStatus.value = 'error' }
-  })
-
-  ch.on('broadcast', { event: 'ice-device' }, ({ payload }) => {
-    pc.addIceCandidate(payload.candidate).catch(() => {})
-  })
-
-  ch.subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      ch.send({ type: 'broadcast', event: 'request-stream', payload: {} })
-    }
-  })
 }
 
 function closeLive() {

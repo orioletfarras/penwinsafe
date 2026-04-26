@@ -354,41 +354,38 @@
       initRtc()
     }
 
-    // ── WebRTC live view (screen share to admin panel) ───────
+    // ── WebRTC live view ─────────────────────────────────────
     let rtcPc = null
 
+    function waitIceGathering(pc) {
+      return new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') return resolve()
+        pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') resolve() }
+        setTimeout(resolve, 4000)  // max 4s wait
+      })
+    }
+
     function initRtc() {
-      console.log('[rtc] initRtc called')
-      window.penwinsafe.onRtcStart(async () => {
-        console.log('[rtc] onRtcStart fired')
+      window.penwinsafe.onRtcOffer(async (sessionId, offerSdp) => {
+        console.log('[rtc] received offer for session', sessionId)
         try {
           if (rtcPc) { rtcPc.close(); rtcPc = null }
 
-          console.log('[rtc] calling getDisplayMedia...')
-          const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
-          console.log('[rtc] got stream:', stream.getTracks().map(t => t.kind))
+          const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 10 }, audio: false })
+          console.log('[rtc] screen captured')
 
           rtcPc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
           stream.getTracks().forEach(t => rtcPc.addTrack(t, stream))
 
-          rtcPc.onicecandidate = ({ candidate }) => {
-            if (candidate) window.penwinsafe.rtcSendIce(candidate.toJSON())
-          }
+          await rtcPc.setRemoteDescription({ type: 'offer', sdp: offerSdp })
+          const answer = await rtcPc.createAnswer()
+          await rtcPc.setLocalDescription(answer)
 
-          window.penwinsafe.onRtcRemoteDesc(async sdp => {
-            console.log('[rtc] setting remote desc (answer)')
-            await rtcPc.setRemoteDescription({ type: 'answer', sdp })
-          })
+          await waitIceGathering(rtcPc)
 
-          window.penwinsafe.onRtcRemoteIce(async candidate => {
-            try { await rtcPc.addIceCandidate(candidate) } catch {}
-          })
-
-          const offer = await rtcPc.createOffer()
-          await rtcPc.setLocalDescription(offer)
-          console.log('[rtc] sending offer')
-          window.penwinsafe.rtcSendOffer(offer.sdp)
-        } catch (e) { console.error('[rtc] error in onRtcStart:', e.message, e) }
+          console.log('[rtc] sending answer')
+          window.penwinsafe.rtcAnswer(sessionId, rtcPc.localDescription.sdp)
+        } catch (e) { console.error('[rtc] error:', e.message) }
       })
     }
 
