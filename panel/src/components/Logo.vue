@@ -1,0 +1,35 @@
+<template>
+  <div class="flex items-center gap-2.5">
+    <svg :width="size" :height="size" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="shieldGrad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#3b82f6"/>
+          <stop offset="100%" stop-color="#1d4ed8"/>
+        </linearGradient>
+        <linearGradient id="shieldGrad2" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#60a5fa"/>
+          <stop offset="100%" stop-color="#3b82f6"/>
+        </linearGradient>
+      </defs>
+      <!-- Shield shape -->
+      <path d="M20 3L5 9v10c0 9.4 6.4 18.2 15 20.5C29.6 37.2 36 28.4 36 19V9L20 3z" fill="url(#shieldGrad)"/>
+      <path d="M20 3L5 9v10c0 9.4 6.4 18.2 15 20.5" fill="url(#shieldGrad2)" opacity="0.3"/>
+      <!-- P letter -->
+      <text x="13" y="26" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="800" fill="white" letter-spacing="-0.5">P</text>
+      <!-- Check mark overlay -->
+      <circle cx="28" cy="28" r="7" fill="#10b981"/>
+      <path d="M24.5 28l2.5 2.5 4.5-4.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span v-if="showText" :class="textClass">
+      <span class="font-black tracking-tight">Penwin</span><span class="font-light tracking-tight text-brand-400">Safe</span>
+    </span>
+  </div>
+</template>
+
+<script setup>
+defineProps({
+  size:      { type: Number, default: 36 },
+  showText:  { type: Boolean, default: true },
+  textClass: { type: String, default: 'text-xl text-white' }
+})
+</script>

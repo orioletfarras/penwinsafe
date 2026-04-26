@@ -8,11 +8,10 @@
     <div class="relative w-full max-w-md">
       <!-- Logo -->
       <div class="text-center mb-8">
-        <router-link to="/" class="inline-flex items-center gap-3 group">
-          <span class="text-3xl">🛡️</span>
-          <span class="text-2xl font-bold gradient-text">PenwinSafe</span>
+        <router-link to="/" class="inline-flex justify-center mb-2">
+          <Logo :size="44" text-class="text-2xl text-white" />
         </router-link>
-        <p class="text-dark-500 mt-2 text-sm">Panel de administración escolar</p>
+        <p class="text-dark-500 mt-3 text-sm">Panel de administración escolar</p>
       </div>
 
       <!-- Card login -->
@@ -75,6 +74,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import Logo from '../components/Logo.vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
 

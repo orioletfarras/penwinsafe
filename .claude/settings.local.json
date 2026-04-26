@@ -11,7 +11,11 @@
       "Bash(mkdir -p /Users/oriol/penwinsafe/panel)",
       "Bash(npm create *)",
       "Bash(npx tailwindcss *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(gh repo *)",
+      "Bash(vercel --version)",
+      "Bash(vercel login *)",
+      "Bash(vercel *)"
     ]
   }
 }
