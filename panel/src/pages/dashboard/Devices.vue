@@ -129,6 +129,20 @@
         </button>
       </div>
 
+      <!-- Asignar clase -->
+      <div class="px-4 py-2.5 flex items-center gap-2 flex-shrink-0" style="border-bottom:1px solid #e5e7eb;background:#f9fafb">
+        <UserGroupIcon class="w-3.5 h-3.5 flex-shrink-0" style="color:#9ca3af" />
+        <select
+          :value="selectedDevice.group_id || ''"
+          @change="assignGroup(selectedDevice, $event.target.value)"
+          class="flex-1 text-[11px] rounded px-2 py-1 focus:outline-none transition-colors"
+          style="background:#ffffff;border:1px solid #e5e7eb;color:#374151">
+          <option value="">Sin clase asignada</option>
+          <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+        </select>
+        <span v-if="assigningGroup" class="text-[10px]" style="color:#9ca3af">Guardando...</span>
+      </div>
+
       <!-- Tabs -->
       <div class="flex flex-shrink-0" style="border-bottom:1px solid #e5e7eb">
         <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
@@ -292,15 +306,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../../lib/supabase'
-import { MagnifyingGlassIcon, ComputerDesktopIcon, XMarkIcon, SignalIcon, NoSymbolIcon } from '@heroicons/vue/24/outline'
+import { MagnifyingGlassIcon, ComputerDesktopIcon, XMarkIcon, SignalIcon, NoSymbolIcon, UserGroupIcon } from '@heroicons/vue/24/outline'
 
 const devices        = ref([])
+const groups         = ref([])
 const search         = ref('')
 const filterStatus   = ref('')
 const liveDevice     = ref(null)
 const selectedDevice = ref(null)
 const activeTab      = ref('urls')
 const loadingDetail  = ref(false)
+const assigningGroup = ref(false)
 const urlEvents      = ref([])
 const searchEvents   = ref([])
 const blockedEvents  = ref([])
@@ -322,8 +338,12 @@ const tabs = computed(() => [
 ])
 
 onMounted(async () => {
-  const { data } = await supabase.from('devices').select('*, groups(name)').order('status').order('name')
-  devices.value = data || []
+  const [{ data: devs }, { data: grps }] = await Promise.all([
+    supabase.from('devices').select('*, groups(name)').order('status').order('name'),
+    supabase.from('groups').select('id, name').order('name'),
+  ])
+  devices.value = devs || []
+  groups.value  = grps || []
 
   supabase.channel('devices-rt')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'devices' }, p => {
@@ -355,6 +375,18 @@ async function loadDeviceHistory(deviceId) {
   searchEvents.value  = searches.data || []
   blockedEvents.value = blocked.data || []
   loadingDetail.value = false
+}
+
+async function assignGroup(device, groupId) {
+  assigningGroup.value = true
+  const newGroupId = groupId || null
+  await supabase.from('devices').update({ group_id: newGroupId }).eq('id', device.id)
+  device.group_id = newGroupId
+  device.groups = groups.value.find(g => g.id === newGroupId) || null
+  // Update in main list too
+  const idx = devices.value.findIndex(d => d.id === device.id)
+  if (idx !== -1) Object.assign(devices.value[idx], { group_id: newGroupId, groups: device.groups })
+  assigningGroup.value = false
 }
 
 async function toggleLock(device) {
