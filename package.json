@@ -41,7 +41,8 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico",
-      "requestedExecutionLevel": "requireAdministrator"
+      "requestedExecutionLevel": "requireAdministrator",
+      "artifactName": "PenwinSafe-Setup.exe"
     },
     "nsis": {
       "oneClick": false,
@@ -57,7 +58,8 @@
     "mac": {
       "target": "dmg",
       "icon": "assets/icon.icns",
-      "notarize": false
+      "notarize": false,
+      "artifactName": "PenwinSafe-${arch}.dmg"
     },
     "linux": {
       "target": "AppImage",
