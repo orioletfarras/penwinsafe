@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { x25519 } from 'https://esm.sh/@noble/curves@1.3.0/ed25519'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -25,7 +26,9 @@ class UnifiClient {
   private csrf = ''
 
   constructor(url: string) {
-    this.baseUrl = url.replace(/\/$/, '')
+    let u = url.trim()
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+    this.baseUrl = u.replace(/\/$/, '')
   }
 
   async login(username: string, password: string) {
@@ -59,9 +62,24 @@ class UnifiClient {
       },
       body: JSON.stringify(body),
     })
-    const data = await res.json()
+    const text = await res.text()
+    let data: any
+    try { data = JSON.parse(text) } catch { data = { _raw: text } }
+    if (!res.ok) throw new Error(`POST ${path} ${res.status}: ${text.slice(0, 200)}`)
     if (data?.meta?.rc === 'error') throw new Error(data.meta.msg || 'UniFi API error')
     return data
+  }
+
+  // Probe: GET without throwing — returns null if not found/error
+  async probe(path: string): Promise<any> {
+    try {
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        headers: { 'Cookie': this.cookies, 'X-Csrf-Token': this.csrf },
+      })
+      if (!res.ok) return null
+      const text = await res.text()
+      try { return JSON.parse(text) } catch { return null }
+    } catch { return null }
   }
 
   async put(path: string, body: unknown) {
@@ -101,6 +119,30 @@ serve(async (req) => {
   if (adminUser?.role !== 'superadmin') return json({ error: 'Forbidden' }, 403)
 
   const { action, org_id, ...params } = await req.json()
+
+  // ── GET_SITES: login with provided credentials and return site list ──────
+  // Credentials are passed directly (not yet saved to DB)
+  if (action === 'get_sites') {
+    const { controller_url, username, password } = params
+    if (!controller_url || !username || !password)
+      return json({ error: 'Faltan parámetros' }, 400)
+    try {
+      const client = new UnifiClient(controller_url)
+      await client.login(username, password)
+      // UniFi OS (UXG Pro, UDM) uses /proxy/network prefix; standalone uses /api directly
+      let raw: any = null
+      try {
+        raw = await client.get('/proxy/network/api/self/sites')
+      } catch {
+        raw = await client.get('/api/self/sites')
+      }
+      const list: any[] = Array.isArray(raw) ? raw : (raw?.data ?? [])
+      const sites = list.map((s: any) => ({ id: s.name, label: s.desc || s.name }))
+      return json({ ok: true, sites })
+    } catch (e: any) {
+      return json({ ok: false, error: e.message })
+    }
+  }
 
   // Load UniFi credentials for this org
   const { data: config } = await supabase
@@ -146,11 +188,97 @@ serve(async (req) => {
       const checks: string[] = []
       const errors: string[] = []
 
-      // 1. Check WireGuard VPN support
-      const vpnConfig = await client.get(`/proxy/network/api/s/${site}/rest/vpnclient`).catch(() => null)
-      const wgConfig  = await client.get(`/proxy/network/api/s/${site}/rest/wguard`).catch(() => null)
-      if (!wgConfig && !vpnConfig) {
-        errors.push('WireGuard no disponible en este UXG Pro — actualiza el firmware')
+      // 1. WireGuard server keypair + UXG Pro configuration
+      let wgPubKey = config.wg_server_public_key
+      if (!wgPubKey) {
+        try {
+          // Generate Curve25519 keypair — WireGuard native format
+          const privRaw = x25519.utils.randomPrivateKey()
+          const pubRaw  = x25519.getPublicKey(privRaw)
+          const privB64 = btoa(String.fromCharCode(...privRaw))
+          const pubB64  = btoa(String.fromCharCode(...pubRaw))
+          wgPubKey = pubB64
+
+          // Try to configure WireGuard VPN server on UXG Pro via multiple known endpoints
+          const controllerHost = config.controller_url.replace(/^https?:\/\//, '').split(':')[0].split('/')[0]
+          let wgApiOk = false
+          const listenPort = config.wg_port ?? 51820
+          const wgNetwork  = config.wg_network ?? '10.99.1.0/24'
+
+          // Payloads differ slightly between API versions
+          const wgPayloadV2 = {
+            enabled: true,
+            interface_name: 'wg0',
+            private_key: privB64,
+            listen_port: listenPort,
+            ip_subnets: [wgNetwork],
+            site_name: site,
+          }
+          const wgPayloadV1 = {
+            enabled: true,
+            name: 'PenwinSafe',
+            private_key: privB64,
+            server_addr: wgNetwork.split('/')[0],
+            listen_port: listenPort,
+            type: 'wireguard',
+          }
+
+          // Endpoint candidates: probe each, then POST to first that responds
+          const wgCandidates: Array<{ path: string; payload: object }> = [
+            { path: `/proxy/network/v2/api/site/${site}/vpn-server`,          payload: wgPayloadV2 },
+            { path: `/proxy/network/v2/api/site/${site}/vpn/wireguard-server`, payload: wgPayloadV2 },
+            { path: `/proxy/network/v2/api/site/${site}/teleport/servers`,     payload: wgPayloadV2 },
+            { path: `/proxy/network/v2/api/site/${site}/vpn`,                  payload: wgPayloadV2 },
+            { path: `/proxy/network/api/s/${site}/rest/vpnserver`,             payload: wgPayloadV1 },
+            { path: `/proxy/network/api/s/${site}/rest/vpn-server`,            payload: wgPayloadV1 },
+          ]
+
+          for (const { path, payload } of wgCandidates) {
+            const probed = await client.probe(path)
+            if (probed !== null) {
+              try {
+                await client.post(path, payload)
+                wgApiOk = true
+                checks.push(`Servidor WireGuard configurado en el UXG Pro (puerto ${listenPort})`)
+                break
+              } catch { /* endpoint exists but POST failed — try next */ }
+            }
+          }
+
+          // If none of the probed endpoints accepted the POST, try posting to all blindly
+          if (!wgApiOk) {
+            for (const { path, payload } of wgCandidates) {
+              try {
+                await client.post(path, payload)
+                wgApiOk = true
+                checks.push(`Servidor WireGuard configurado en el UXG Pro (puerto ${listenPort})`)
+                break
+              } catch { /* try next */ }
+            }
+          }
+
+          if (!wgApiOk) {
+            errors.push(
+              `WireGuard: no se encontró un endpoint compatible en el controlador. ` +
+              `Activa el servidor WireGuard manualmente en Settings → Teleport & VPN → WireGuard ` +
+              `usando la clave pública: ${pubB64}, puerto ${listenPort}.`
+            )
+          }
+
+          // Save keys and server details to DB regardless
+          await supabase.from('unifi_configs').update({
+            wg_server_public_key: pubB64,
+            wg_server_private_key: privB64,
+            wg_server_ip: controllerHost,
+            wg_port: config.wg_port ?? 51820,
+            wg_network: config.wg_network ?? '10.99.1.0/24',
+          }).eq('org_id', org_id)
+
+        } catch (e: any) {
+          errors.push(`WireGuard: error generando claves — ${e.message}`)
+        }
+      } else {
+        checks.push('WireGuard: claves del servidor ya generadas')
       }
 
       // 2. Create PenwinSafe VLAN (if not exists)
@@ -184,27 +312,57 @@ serve(async (req) => {
 
       // 3. Create PenwinSafe SSID (if not exists)
       const wlans = await client.get(`/proxy/network/api/s/${site}/rest/wlanconf`)
-      let wlanId = wlans.data?.find((w: any) => w.name === 'PenwinSafe')?._id
+      // Case-insensitive search to catch partial previous attempts
+      let wlanId = wlans.data?.find((w: any) =>
+        w.name?.toLowerCase() === 'penwinsafe'
+      )?._id
 
       if (!wlanId) {
-        // Generate a random WPA2 password for the SSID
         const wpaKey = Array.from(crypto.getRandomValues(new Uint8Array(16)))
           .map(b => b.toString(16).padStart(2, '0')).join('')
 
-        const wlanRes = await client.post(`/proxy/network/api/s/${site}/rest/wlanconf`, {
-          name: 'PenwinSafe',
-          security: 'wpapsk',
-          wpa_mode: 'wpa2',
-          wpa_enc: 'ccmp',
-          usergroup_id: '',
-          networkconf_id: vlanId,
-          x_passphrase: wpaKey,
-          enabled: true,
-          is_guest: false,
-          hide_ssid: false,
-        })
-        wlanId = wlanRes.data?.[0]?._id
-        checks.push(`SSID PenwinSafe creado (WPA2, red VLAN 99)`)
+        // Copy ap_group_ids from any existing WLAN (most reliable source)
+        let apGroupIds: string[] = (wlans.data ?? [])
+          .map((w: any) => w.ap_group_ids ?? [])
+          .find((ids: string[]) => ids.length > 0) ?? []
+
+        if (!apGroupIds.length) {
+          try {
+            const apGroups = await client.get(`/proxy/network/api/s/${site}/rest/apgroup`)
+            const list = apGroups?.data ?? (Array.isArray(apGroups) ? apGroups : [])
+            apGroupIds = list.map((g: any) => g._id).filter(Boolean)
+          } catch { /* ignore */ }
+        }
+
+        try {
+          const wlanRes = await client.post(`/proxy/network/api/s/${site}/rest/wlanconf`, {
+            name: 'PenwinSafe',
+            security: 'wpapsk',
+            wpa_mode: 'wpa2',
+            wpa_enc: 'ccmp',
+            usergroup_id: '',
+            networkconf_id: vlanId,
+            x_passphrase: wpaKey,
+            enabled: true,
+            is_guest: false,
+            hide_ssid: false,
+            ap_group_mode: 'all',
+            ap_group_ids: apGroupIds,
+          })
+          wlanId = wlanRes.data?.[0]?._id
+          checks.push('SSID PenwinSafe creado (WPA2, red VLAN 99)')
+        } catch (e: any) {
+          if (e.message?.includes('TooManyWirelessNetwork')) {
+            errors.push(
+              `El controlador ha alcanzado el límite de SSIDs. ` +
+              `Elimina algún SSID que no uses desde el panel de UniFi (` +
+              `Configuración → WiFi) y vuelve a intentarlo. ` +
+              `Actualmente tienes ${wlans.data?.length ?? '?'} SSIDs configurados.`
+            )
+            return json({ ok: false, checks, errors })
+          }
+          throw e
+        }
       } else {
         checks.push('SSID PenwinSafe ya existe')
       }
@@ -273,14 +431,11 @@ serve(async (req) => {
         checks.push('Reglas firewall ya existen')
       }
 
-      // 5. Save config to DB
+      // 5. Save config to DB — do NOT touch last_check_ok (that's only for the connection wizard)
       await supabase.from('unifi_configs').update({
         network_active: errors.length === 0,
         vlan_network_id: vlanId,
         wlan_id: wlanId,
-        last_check_at: new Date().toISOString(),
-        last_check_ok: errors.length === 0,
-        last_check_msg: errors.length > 0 ? errors.join('; ') : 'OK',
       }).eq('org_id', org_id)
 
       return json({ ok: errors.length === 0, checks, errors })

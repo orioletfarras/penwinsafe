@@ -100,6 +100,14 @@
                       : 'color:#dc2626;background:#fef2f2;border:1px solid #fecaca'">
                     {{ d.status === 'locked' ? 'Desbloquear' : 'Bloquear' }}
                   </button>
+                  <button @click="deleteDevice(d)"
+                    class="p-1.5 rounded transition-colors"
+                    style="color:#9ca3af;background:#f9fafb;border:1px solid #e5e7eb"
+                    title="Eliminar dispositivo"
+                    @mouseenter="e => e.currentTarget.style.cssText='color:#dc2626;background:#fef2f2;border:1px solid #fecaca'"
+                    @mouseleave="e => e.currentTarget.style.cssText='color:#9ca3af;background:#f9fafb;border:1px solid #e5e7eb'">
+                    <TrashIcon class="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </td>
             </tr>
@@ -383,7 +391,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { supabase } from '../../lib/supabase'
-import { MagnifyingGlassIcon, ComputerDesktopIcon, XMarkIcon, SignalIcon, NoSymbolIcon, UserGroupIcon } from '@heroicons/vue/24/outline'
+import { MagnifyingGlassIcon, ComputerDesktopIcon, XMarkIcon, SignalIcon, NoSymbolIcon, UserGroupIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import NetworkModeBadge from '../../components/NetworkModeBadge.vue'
 
 const devices        = ref([])
@@ -476,6 +484,13 @@ async function toggleLock(device) {
   const newStatus = device.status === 'locked' ? 'offline' : 'locked'
   await supabase.from('devices').update({ status: newStatus }).eq('id', device.id)
   device.status = newStatus
+}
+
+async function deleteDevice(device) {
+  if (!confirm(`¿Eliminar "${device.name}"? El dispositivo tendrá que volver a activarse con el código de centro.`)) return
+  await supabase.from('devices').delete().eq('id', device.id)
+  devices.value = devices.value.filter(d => d.id !== device.id)
+  if (selectedDevice.value?.id === device.id) selectedDevice.value = null
 }
 
 function watchLive(d) { startLive(d) }

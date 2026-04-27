@@ -14,6 +14,8 @@
         {{ generating ? 'Generando...' : 'Generar ahora' }}
       </button>
     </div>
+    <p v-if="generateMsg" class="text-[12px] mt-2 text-right"
+      :style="generateOk ? 'color:#16a34a' : 'color:#dc2626'">{{ generateMsg }}</p>
 
     <!-- Filtro por dispositivo -->
     <div>
@@ -115,12 +117,25 @@ onMounted(async () => {
   loading.value  = false
 })
 
+const generateMsg = ref('')
+const generateOk  = ref(false)
+
 async function generateNow() {
   generating.value = true
+  generateMsg.value = ''
   try {
-    await supabase.functions.invoke('weekly-report', { method: 'POST' })
-    const { data } = await supabase.from('weekly_reports').select('*, devices(name)').order('week_start', { ascending: false }).limit(30)
-    reports.value = (data || []).map(r => ({ ...r, _expanded: false }))
+    const { data, error } = await supabase.functions.invoke('weekly-report', { method: 'POST' })
+    if (error) throw new Error(error.message)
+    const count = data?.generated ?? 0
+    generateOk.value = true
+    generateMsg.value = count > 0
+      ? `${count} informe(s) generado(s) correctamente`
+      : 'No hay datos suficientes para generar informes esta semana'
+    const { data: reps } = await supabase.from('weekly_reports').select('*, devices(name)').order('week_start', { ascending: false }).limit(30)
+    reports.value = (reps || []).map(r => ({ ...r, _expanded: false }))
+  } catch (e) {
+    generateOk.value = false
+    generateMsg.value = `Error: ${e.message}`
   } finally {
     generating.value = false
   }

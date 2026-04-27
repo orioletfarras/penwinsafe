@@ -247,12 +247,23 @@ async function heartbeat() {
 
   const networkMode = getWireguard()?.getNetworkMode() || null
 
-  await supabase.from('devices').update({
+  const { error, count } = await supabase.from('devices').update({
     status: 'online',
     last_seen: new Date().toISOString(),
     ip_address: ip,
     ...(networkMode ? { network_mode: networkMode } : {}),
-  }).eq('id', deviceId)
+  }, { count: 'exact' }).eq('id', deviceId)
+
+  // Device was deleted from the panel — deactivate and reload
+  if (!error && count === 0) {
+    activation.clearActivation()
+    const { app } = require('electron')
+    const { BrowserWindow } = require('electron')
+    BrowserWindow.getAllWindows().forEach(w => w.loadFile(
+      require('path').join(app.getAppPath(), 'renderer', 'index.html')
+    ))
+    return
+  }
 
   // Refresh filter config every heartbeat so changes in panel apply within 30s
   await fetchFilterConfig()

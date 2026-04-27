@@ -43,17 +43,43 @@
         <div v-if="orgDropdownOpen && isSuperAdmin"
           class="absolute left-3 right-3 top-full mt-1 rounded-lg shadow-lg z-50 overflow-hidden"
           style="background:#fff;border:1px solid #e5e7eb">
-          <div class="py-1 max-h-64 overflow-y-auto">
-            <button v-for="org in allOrgs" :key="org.id"
+          <!-- Search -->
+          <div class="px-2 py-1.5" style="border-bottom:1px solid #f3f4f6">
+            <div class="flex items-center gap-1.5 px-2 py-1 rounded" style="background:#f9fafb;border:1px solid #e5e7eb">
+              <MagnifyingGlassIcon class="w-3 h-3 flex-shrink-0" style="color:#9ca3af" />
+              <input
+                v-model="orgSearch"
+                placeholder="Buscar colegio..."
+                class="flex-1 text-[11px] bg-transparent outline-none"
+                style="color:#374151"
+                @click.stop />
+            </div>
+          </div>
+          <!-- Org list -->
+          <div class="py-1 max-h-56 overflow-y-auto">
+            <button v-for="org in filteredOrgs" :key="org.id"
               class="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[12px] transition-colors"
               :style="org.id === selectedOrgId
                 ? 'background:#eff6ff;color:#7c3aed;font-weight:600'
                 : 'color:#374151'"
-              @mouseenter="e => e.currentTarget.style.background='#f9fafb'"
+              @mouseenter="e => e.currentTarget.style.background = org.id === selectedOrgId ? '#eff6ff' : '#f9fafb'"
               @mouseleave="e => e.currentTarget.style.background = org.id === selectedOrgId ? '#eff6ff' : 'transparent'"
               @click="handleSwitchOrg(org.id)">
               <BuildingOfficeIcon class="w-3.5 h-3.5 flex-shrink-0" style="color:#9ca3af" />
               {{ org.name }}
+            </button>
+            <p v-if="filteredOrgs.length === 0" class="px-3 py-2 text-[11px]" style="color:#9ca3af">Sin resultados</p>
+          </div>
+          <!-- Create new school -->
+          <div style="border-top:1px solid #f3f4f6">
+            <button
+              class="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[12px] transition-colors"
+              style="color:#7c3aed"
+              @mouseenter="e => e.currentTarget.style.background='#faf5ff'"
+              @mouseleave="e => e.currentTarget.style.background='transparent'"
+              @click="handleCreateOrg">
+              <PlusCircleIcon class="w-3.5 h-3.5 flex-shrink-0" />
+              Crear nuevo colegio
             </button>
           </div>
         </div>
@@ -130,7 +156,11 @@
 
       <!-- Content -->
       <main class="flex-1 p-6">
-        <router-view />
+        <router-view v-if="selectedOrgId" v-slot="{ Component }">
+          <transition name="page">
+            <component :is="Component" :key="route.path + orgSwitchKey" />
+          </transition>
+        </router-view>
       </main>
     </div>
   </div>
@@ -140,13 +170,14 @@
 import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { supabase } from '../../lib/supabase'
-import { loadUserContext, isSuperAdmin, allOrgs, selectedOrgId, switchOrg, selectedOrgName } from '../../lib/orgStore'
+import { loadUserContext, isSuperAdmin, allOrgs, selectedOrgId, switchOrg, selectedOrgName, orgSwitchKey } from '../../lib/orgStore'
 import Logo from '../../components/Logo.vue'
 import {
   Squares2X2Icon, ComputerDesktopIcon, BellIcon, DocumentTextIcon,
   Cog6ToothIcon, ArrowRightStartOnRectangleIcon, ChevronRightIcon,
   UserGroupIcon, ShieldExclamationIcon, WrenchScrewdriverIcon,
-  ChevronDownIcon, BuildingOfficeIcon
+  ChevronDownIcon, BuildingOfficeIcon, MagnifyingGlassIcon, PlusCircleIcon,
+  UsersIcon
 } from '@heroicons/vue/24/outline'
 
 // ── NavItem component ──────────────────────────────────────────────────────
@@ -184,12 +215,17 @@ const userEmail  = ref('')
 const orgName    = ref('')
 const alertCount = ref(0)
 const orgDropdownOpen = ref(false)
+const orgSearch = ref('')
 
 const userInitials = computed(() => {
   const p = userEmail.value.split('@')[0].split(/[._-]/)
   return p.map(s => s[0]?.toUpperCase() || '').join('').slice(0, 2) || 'AD'
 })
 const orgInitial = computed(() => orgName.value[0]?.toUpperCase() || 'C')
+const filteredOrgs = computed(() => {
+  const q = orgSearch.value.trim().toLowerCase()
+  return q ? allOrgs.value.filter(o => o.name.toLowerCase().includes(q)) : allOrgs.value
+})
 
 const mainNav = computed(() => [
   { to: '/dashboard',         label: 'Resumen',      icon: Squares2X2Icon },
@@ -199,6 +235,7 @@ const mainNav = computed(() => [
 const mgmtNav = computed(() => [
   { to: '/dashboard/groups',      label: 'Clases',         icon: UserGroupIcon },
   { to: '/dashboard/filters',     label: 'Filtros',        icon: ShieldExclamationIcon },
+  { to: '/dashboard/users',       label: 'Usuarios',       icon: UsersIcon },
   { to: '/dashboard/reports',     label: 'Informes',       icon: DocumentTextIcon },
   { to: '/dashboard/settings',    label: 'Configuración',  icon: Cog6ToothIcon },
   ...(isSuperAdmin.value ? [{ to: '/dashboard/superconfig', label: 'SuperConfig', icon: WrenchScrewdriverIcon }] : []),
@@ -211,6 +248,7 @@ const pageMap = {
   '/dashboard/groups':      'Clases',
   '/dashboard/filters':     'Filtros',
   '/dashboard/reports':     'Informes',
+  '/dashboard/users':       'Usuarios',
   '/dashboard/settings':    'Configuración',
   '/dashboard/superconfig': 'SuperConfig',
 }
@@ -238,11 +276,18 @@ onMounted(async () => {
   await loadAlertCount()
 })
 
-function handleSwitchOrg(orgId) {
-  switchOrg(orgId)
+async function handleSwitchOrg(orgId) {
+  await switchOrg(orgId)
   orgName.value = allOrgs.value.find(o => o.id === orgId)?.name || ''
   orgDropdownOpen.value = false
+  orgSearch.value = ''
   loadAlertCount()
+}
+
+function handleCreateOrg() {
+  orgDropdownOpen.value = false
+  orgSearch.value = ''
+  router.push('/dashboard/superconfig?new=1')
 }
 
 async function handleLogout() {
@@ -250,3 +295,20 @@ async function handleLogout() {
   router.push('/login')
 }
 </script>
+
+<style scoped>
+.page-enter-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.page-leave-active {
+  transition: opacity 0.1s ease;
+  position: absolute;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-leave-to {
+  opacity: 0;
+}
+</style>

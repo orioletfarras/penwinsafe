@@ -85,4 +85,8 @@ function getLocalIP() {
   return '127.0.0.1'
 }
 
-module.exports = { isActivated, getDeviceInfo, activate, loadActivation }
+function clearActivation() {
+  try { fs.unlinkSync(getActivationPath()) } catch {}
+}
+
+module.exports = { isActivated, getDeviceInfo, activate, loadActivation, clearActivation }

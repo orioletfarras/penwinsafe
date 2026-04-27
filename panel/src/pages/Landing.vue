@@ -48,16 +48,27 @@
               Navegador con filtrado DNS permanente, monitorización en tiempo real y alertas por IA.
               El alumno no puede saltárselo.
             </p>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <router-link to="/login"
-                class="flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-brand-600/25 text-sm">
-                Acceder al panel
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </router-link>
-              <a href="mailto:hola@penwin.org"
-                class="flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 hover:bg-white/5 text-white font-medium px-6 py-3.5 rounded-xl transition-all text-sm">
-                Contactar
-              </a>
+            <!-- Download buttons -->
+            <div class="flex flex-col gap-3">
+              <div class="flex flex-col sm:flex-row gap-3">
+                <!-- Primary: detected OS -->
+                <a :href="primaryDownload.url" :download="primaryDownload.filename"
+                  class="flex items-center justify-center gap-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-brand-600/25 text-sm">
+                  <component :is="primaryDownload.icon" class="w-5 h-5 flex-shrink-0" />
+                  <span>Descargar para {{ primaryDownload.label }}</span>
+                </a>
+                <router-link to="/login"
+                  class="flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 hover:bg-white/5 text-white font-medium px-6 py-3.5 rounded-xl transition-all text-sm">
+                  Acceder al panel
+                </router-link>
+              </div>
+              <!-- Secondary: other OS -->
+              <p class="text-xs text-gray-600">
+                ¿Tienes {{ secondaryDownload.label }}?
+                <a :href="secondaryDownload.url" class="text-gray-400 hover:text-white underline underline-offset-2 transition-colors">
+                  Descargar para {{ secondaryDownload.label }}
+                </a>
+              </p>
             </div>
             <!-- Logos/trust -->
             <div class="mt-10 pt-10 border-t border-white/5">
@@ -78,6 +89,41 @@
           <div class="hidden lg:block">
             <BrowserMockup />
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOWNLOAD BAR -->
+    <section class="py-5 px-6 border-y border-white/5" style="background:rgba(255,255,255,0.02)">
+      <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-brand-600/20 border border-brand-600/30 flex items-center justify-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-brand-400"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-white">PenwinSafe {{ appVersion }}</p>
+            <p class="text-xs text-gray-500">Windows &amp; macOS · Actualización automática incluida</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <a :href="downloads.win.url"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            :class="detectedOS === 'win'
+              ? 'bg-brand-600 hover:bg-brand-500 text-white'
+              : 'border border-white/10 hover:border-white/20 hover:bg-white/5 text-gray-300'">
+            <WindowsIcon class="w-4 h-4" />
+            Windows
+            <span v-if="detectedOS === 'win'" class="text-xs bg-white/20 px-1.5 py-0.5 rounded font-medium">Tu sistema</span>
+          </a>
+          <a :href="downloads.mac.url"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            :class="detectedOS === 'mac'
+              ? 'bg-brand-600 hover:bg-brand-500 text-white'
+              : 'border border-white/10 hover:border-white/20 hover:bg-white/5 text-gray-300'">
+            <AppleIcon class="w-4 h-4" />
+            macOS
+            <span v-if="detectedOS === 'mac'" class="text-xs bg-white/20 px-1.5 py-0.5 rounded font-medium">Tu sistema</span>
+          </a>
         </div>
       </div>
     </section>
@@ -252,12 +298,49 @@
 </template>
 
 <script setup>
+import { computed, defineComponent, h } from 'vue'
 import Logo from '../components/Logo.vue'
 import BrowserMockup from '../components/BrowserMockup.vue'
 
 function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
+
+// ── OS detection ──────────────────────────────────────────────────────────
+const ua = navigator.userAgent.toLowerCase()
+const detectedOS = ua.includes('win') ? 'win' : ua.includes('mac') ? 'mac' : 'win'
+
+const appVersion = 'v1.0.0'
+const RELEASES_BASE = 'https://github.com/orioletfarras/penwinsafe-releases/releases/latest/download'
+
+const downloads = {
+  win: {
+    url:      `${RELEASES_BASE}/PenwinSafe-Setup.exe`,
+    filename: 'PenwinSafe-Setup.exe',
+    label:    'Windows',
+  },
+  mac: {
+    url:      `${RELEASES_BASE}/PenwinSafe-arm64.dmg`,
+    filename: 'PenwinSafe-arm64.dmg',
+    label:    'macOS',
+  },
+}
+
+// ── OS icon components ────────────────────────────────────────────────────
+const WindowsIcon = defineComponent({
+  setup: () => () => h('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor' }, [
+    h('path', { d: 'M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801' })
+  ])
+})
+
+const AppleIcon = defineComponent({
+  setup: () => () => h('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor' }, [
+    h('path', { d: 'M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z' })
+  ])
+})
+
+const primaryDownload   = computed(() => ({ ...downloads[detectedOS],   icon: detectedOS === 'win' ? WindowsIcon : AppleIcon }))
+const secondaryDownload = computed(() => ({ ...downloads[detectedOS === 'win' ? 'mac' : 'win'], icon: detectedOS === 'win' ? AppleIcon : WindowsIcon }))
 
 const stats = [
   { value: '100%', label: 'Tráfico DNS filtrado' },
@@ -280,7 +363,7 @@ const features = [
 const steps = [
   {
     title: 'Instala PenwinSafe',
-    desc: 'Descarga el instalador y ejecútalo. En 2 minutos el PC está registrado y protegido.'
+    desc: 'Descarga el instalador para Windows o macOS y ejecútalo. En 2 minutos el ordenador está registrado y protegido.'
   },
   {
     title: 'Configura desde el panel',

@@ -6,6 +6,7 @@ export const currentRole   = ref(null)   // 'superadmin' | 'admin' | 'viewer'
 export const allOrgs       = ref([])     // [{ id, name, slug }] — only for superadmin
 export const selectedOrgId = ref(null)   // active org for superadmin
 export const myOrgId       = ref(null)   // own org from admin_users
+export const orgSwitchKey  = ref(0)      // increment to force page remount on org switch
 
 export const isSuperAdmin = computed(() => currentRole.value === 'superadmin')
 
@@ -39,15 +40,30 @@ export async function loadUserContext() {
       .order('name')
     allOrgs.value = orgs || []
 
-    // Restore previously selected org from localStorage
-    const saved = localStorage.getItem('penwin_selected_org')
-    if (saved && orgs?.find(o => o.id === saved)) {
-      selectedOrgId.value = saved
+    // Priority: DB session (persists across browsers) > localStorage > first org
+    const { data: dbSession } = await supabase
+      .from('superadmin_session')
+      .select('selected_org_id')
+      .eq('user_id', user.id)
+      .single()
+
+    let initialOrgId = null
+    const dbOrg = dbSession?.selected_org_id
+    const saved  = localStorage.getItem('penwin_selected_org')
+
+    if (dbOrg && orgs?.find(o => o.id === dbOrg)) {
+      initialOrgId = dbOrg
+    } else if (saved && orgs?.find(o => o.id === saved)) {
+      initialOrgId = saved
     } else if (orgs?.length) {
-      // Default to first non-Penwin org, or first org
       const first = orgs.find(o => o.slug !== 'penwin') || orgs[0]
-      selectedOrgId.value = first.id
-      localStorage.setItem('penwin_selected_org', first.id)
+      initialOrgId = first.id
+    }
+
+    if (initialOrgId) {
+      selectedOrgId.value = initialOrgId
+      localStorage.setItem('penwin_selected_org', initialOrgId)
+      await supabase.rpc('set_superadmin_org', { org_id: initialOrgId })
     }
   } else {
     selectedOrgId.value = admin.org_id
@@ -56,9 +72,11 @@ export async function loadUserContext() {
   return admin
 }
 
-export function switchOrg(orgId) {
+export async function switchOrg(orgId) {
   selectedOrgId.value = orgId
   localStorage.setItem('penwin_selected_org', orgId)
+  await supabase.rpc('set_superadmin_org', { org_id: orgId })
+  orgSwitchKey.value++
 }
 
 export function selectedOrgName() {

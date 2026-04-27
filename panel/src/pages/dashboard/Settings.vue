@@ -118,8 +118,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { supabase } from '../../lib/supabase'
+import { selectedOrgId, orgSwitchKey } from '../../lib/orgStore'
 import { ClipboardDocumentIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 
 const orgName     = ref('')
@@ -140,23 +141,29 @@ const filterLevels = [
   { value: 'security', label: 'Security Filter', desc: 'Solo bloquea malware y phishing. Filtrado minimo.' },
 ]
 
-onMounted(async () => {
+async function loadSettings() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
   userEmail.value = user.email
 
-  const { data: admin } = await supabase
-    .from('admin_users')
-    .select('org_id, organizations(id, name, slug, center_code)')
-    .eq('id', user.id)
+  const targetOrg = selectedOrgId.value
+  if (!targetOrg) return
+
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('id, name, slug, center_code')
+    .eq('id', targetOrg)
     .single()
 
-  if (admin?.organizations) {
-    orgName.value    = admin.organizations.name
-    orgId.value      = admin.organizations.id
-    centerCode.value = admin.organizations.center_code || '—'
+  if (org) {
+    orgName.value    = org.name
+    orgId.value      = org.id
+    centerCode.value = org.center_code || '—'
   }
-})
+}
+
+onMounted(loadSettings)
+watch(orgSwitchKey, loadSettings)
 
 async function saveOrg() {
   if (!orgId.value) return

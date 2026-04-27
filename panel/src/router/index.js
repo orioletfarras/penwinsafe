@@ -16,6 +16,7 @@ const routes = [
       { path: 'reports',  name: 'reports',   component: () => import('../pages/dashboard/Reports.vue') },
       { path: 'settings', name: 'settings',  component: () => import('../pages/dashboard/Settings.vue') },
       { path: 'filters',      name: 'filters',      component: () => import('../pages/dashboard/Filters.vue') },
+      { path: 'users',        name: 'users',        component: () => import('../pages/dashboard/Users.vue') },
       { path: 'superconfig',  name: 'superconfig',  component: () => import('../pages/dashboard/SuperConfig.vue'), meta: { requiresSuperAdmin: true } },
     ]
   },
