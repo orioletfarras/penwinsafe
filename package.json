@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.1",
-    "dns-packet": "^5.6.1"
+    "dns-packet": "^5.6.1",
+    "electron-updater": "^6.8.3"
   },
   "devDependencies": {
     "electron": "^30.0.0",
     "electron-builder": "^24.0.0",
+    "png2icons": "^2.0.1",
     "sharp": "^0.34.5"
   },
   "build": {
@@ -28,13 +30,34 @@
       "src/**/*",
       "renderer/**/*"
     ],
+    "extraFiles": [],
+    "extraResources": [],
+    "publish": {
+      "provider": "github",
+      "owner": "orioletfarras",
+      "repo": "penwinsafe-releases",
+      "private": true
+    },
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeader": "assets/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PenwinSafe",
+      "include": "installer.nsh"
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.icns",
+      "notarize": false
     },
     "linux": {
       "target": "AppImage",

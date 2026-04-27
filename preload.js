@@ -22,7 +22,13 @@ contextBridge.exposeInMainWorld('penwinsafe', {
   onTitleChange: (cb) => ipcRenderer.on('title-changed', (_, title) => cb(title)),
   onLoadingChange: (cb) => ipcRenderer.on('loading-changed', (_, loading) => cb(loading)),
 
-  // WebRTC: main sends offer → renderer captures screen + answers → sends answer back
+  // WebRTC
   onRtcOffer:  (cb) => ipcRenderer.on('rtc-offer', (_, sessionId, offerSdp) => cb(sessionId, offerSdp)),
   rtcAnswer:   (sessionId, answerSdp) => ipcRenderer.send('rtc-answer', sessionId, answerSdp),
+
+  // Auto-update
+  onUpdateAvailable: (cb) => ipcRenderer.on('update-available', (_, v) => cb(v)),
+  onUpdateProgress:  (cb) => ipcRenderer.on('update-progress',  (_, p) => cb(p)),
+  onUpdateDownloaded:(cb) => ipcRenderer.on('update-downloaded',(_, v) => cb(v)),
+  installUpdate: () => ipcRenderer.send('update-install-now'),
 })

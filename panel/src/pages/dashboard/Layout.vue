@@ -9,9 +9,26 @@
         <Logo :size="24" text-class="text-[13px] font-semibold text-[#111827]" />
       </div>
 
-      <!-- Org block -->
-      <div class="px-3 pt-3 pb-2 flex-shrink-0">
-        <div class="flex items-center gap-2.5 px-2.5 py-2 rounded" style="background:#eff6ff;border:1px solid #bfdbfe">
+      <!-- Org block / Switcher -->
+      <div class="px-3 pt-3 pb-2 flex-shrink-0 relative">
+        <!-- Superadmin: clickable org switcher -->
+        <div v-if="isSuperAdmin"
+          class="flex items-center gap-2.5 px-2.5 py-2 rounded cursor-pointer select-none"
+          style="background:#eff6ff;border:1px solid #bfdbfe"
+          @click="orgDropdownOpen = !orgDropdownOpen">
+          <div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+            style="background:#7c3aed">
+            {{ orgInitial }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-[12px] font-medium leading-none truncate" style="color:#111827">{{ orgName || '...' }}</p>
+            <p class="text-[10px] mt-0.5" style="color:#7c3aed;font-weight:600">Superadmin</p>
+          </div>
+          <ChevronDownIcon class="w-3.5 h-3.5 flex-shrink-0" style="color:#7c3aed" />
+        </div>
+
+        <!-- Regular admin block -->
+        <div v-else class="flex items-center gap-2.5 px-2.5 py-2 rounded" style="background:#eff6ff;border:1px solid #bfdbfe">
           <div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
             style="background:#006fff">
             {{ orgInitial }}
@@ -19,6 +36,25 @@
           <div class="flex-1 min-w-0">
             <p class="text-[12px] font-medium leading-none truncate" style="color:#111827">{{ orgName || '...' }}</p>
             <p class="text-[10px] mt-0.5" style="color:#6b7280">Administrador</p>
+          </div>
+        </div>
+
+        <!-- Org dropdown -->
+        <div v-if="orgDropdownOpen && isSuperAdmin"
+          class="absolute left-3 right-3 top-full mt-1 rounded-lg shadow-lg z-50 overflow-hidden"
+          style="background:#fff;border:1px solid #e5e7eb">
+          <div class="py-1 max-h-64 overflow-y-auto">
+            <button v-for="org in allOrgs" :key="org.id"
+              class="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[12px] transition-colors"
+              :style="org.id === selectedOrgId
+                ? 'background:#eff6ff;color:#7c3aed;font-weight:600'
+                : 'color:#374151'"
+              @mouseenter="e => e.currentTarget.style.background='#f9fafb'"
+              @mouseleave="e => e.currentTarget.style.background = org.id === selectedOrgId ? '#eff6ff' : 'transparent'"
+              @click="handleSwitchOrg(org.id)">
+              <BuildingOfficeIcon class="w-3.5 h-3.5 flex-shrink-0" style="color:#9ca3af" />
+              {{ org.name }}
+            </button>
           </div>
         </div>
       </div>
@@ -36,6 +72,7 @@
         </div>
 
         <NavItem v-for="item in mgmtNav" :key="item.to" v-bind="item" :active="isActive(item.to)" />
+
 
       </nav>
 
@@ -103,11 +140,13 @@
 import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { supabase } from '../../lib/supabase'
+import { loadUserContext, isSuperAdmin, allOrgs, selectedOrgId, switchOrg, selectedOrgName } from '../../lib/orgStore'
 import Logo from '../../components/Logo.vue'
 import {
   Squares2X2Icon, ComputerDesktopIcon, BellIcon, DocumentTextIcon,
   Cog6ToothIcon, ArrowRightStartOnRectangleIcon, ChevronRightIcon,
-  UserGroupIcon, ShieldExclamationIcon
+  UserGroupIcon, ShieldExclamationIcon, WrenchScrewdriverIcon,
+  ChevronDownIcon, BuildingOfficeIcon
 } from '@heroicons/vue/24/outline'
 
 // ── NavItem component ──────────────────────────────────────────────────────
@@ -144,6 +183,7 @@ const route  = useRoute()
 const userEmail  = ref('')
 const orgName    = ref('')
 const alertCount = ref(0)
+const orgDropdownOpen = ref(false)
 
 const userInitials = computed(() => {
   const p = userEmail.value.split('@')[0].split(/[._-]/)
@@ -156,21 +196,23 @@ const mainNav = computed(() => [
   { to: '/dashboard/devices', label: 'Dispositivos', icon: ComputerDesktopIcon },
   { to: '/dashboard/alerts',  label: 'Alertas',      icon: BellIcon, badge: alertCount.value || undefined },
 ])
-const mgmtNav = [
-  { to: '/dashboard/groups',   label: 'Clases',        icon: UserGroupIcon },
-  { to: '/dashboard/filters',  label: 'Filtros',       icon: ShieldExclamationIcon },
-  { to: '/dashboard/reports',  label: 'Informes',      icon: DocumentTextIcon },
-  { to: '/dashboard/settings', label: 'Configuración', icon: Cog6ToothIcon },
-]
+const mgmtNav = computed(() => [
+  { to: '/dashboard/groups',      label: 'Clases',         icon: UserGroupIcon },
+  { to: '/dashboard/filters',     label: 'Filtros',        icon: ShieldExclamationIcon },
+  { to: '/dashboard/reports',     label: 'Informes',       icon: DocumentTextIcon },
+  { to: '/dashboard/settings',    label: 'Configuración',  icon: Cog6ToothIcon },
+  ...(isSuperAdmin.value ? [{ to: '/dashboard/superconfig', label: 'SuperConfig', icon: WrenchScrewdriverIcon }] : []),
+])
 
 const pageMap = {
-  '/dashboard':          'Resumen',
-  '/dashboard/devices':  'Dispositivos',
-  '/dashboard/alerts':   'Alertas',
-  '/dashboard/groups':   'Clases',
-  '/dashboard/filters':  'Filtros',
-  '/dashboard/reports':  'Informes',
-  '/dashboard/settings': 'Configuración',
+  '/dashboard':             'Resumen',
+  '/dashboard/devices':     'Dispositivos',
+  '/dashboard/alerts':      'Alertas',
+  '/dashboard/groups':      'Clases',
+  '/dashboard/filters':     'Filtros',
+  '/dashboard/reports':     'Informes',
+  '/dashboard/settings':    'Configuración',
+  '/dashboard/superconfig': 'SuperConfig',
 }
 const currentPageTitle = computed(() => pageMap[route.path] || 'Panel')
 
@@ -178,22 +220,30 @@ function isActive(to) {
   return to === '/dashboard' ? route.path === '/dashboard' : route.path.startsWith(to)
 }
 
-onMounted(async () => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-  userEmail.value = user.email
-  const { data: admin } = await supabase
-    .from('admin_users')
-    .select('organizations(name)')
-    .eq('id', user.id)
-    .single()
-  if (admin?.organizations) orgName.value = admin.organizations.name
+async function loadAlertCount() {
   const { count } = await supabase
     .from('alerts')
     .select('*', { count: 'exact', head: true })
     .eq('resolved', false)
   alertCount.value = count || 0
+}
+
+onMounted(async () => {
+  const admin = await loadUserContext()
+  if (!admin) return
+  userEmail.value = supabase.auth.currentSession?.user?.email || ''
+  const { data: { user } } = await supabase.auth.getUser()
+  userEmail.value = user?.email || ''
+  orgName.value = isSuperAdmin.value ? (selectedOrgName() || 'Penwin') : (admin?.organizations?.name || '')
+  await loadAlertCount()
 })
+
+function handleSwitchOrg(orgId) {
+  switchOrg(orgId)
+  orgName.value = allOrgs.value.find(o => o.id === orgId)?.name || ''
+  orgDropdownOpen.value = false
+  loadAlertCount()
+}
 
 async function handleLogout() {
   await supabase.auth.signOut()

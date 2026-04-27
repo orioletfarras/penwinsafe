@@ -15,7 +15,8 @@ const routes = [
       { path: 'alerts',   name: 'alerts',    component: () => import('../pages/dashboard/Alerts.vue') },
       { path: 'reports',  name: 'reports',   component: () => import('../pages/dashboard/Reports.vue') },
       { path: 'settings', name: 'settings',  component: () => import('../pages/dashboard/Settings.vue') },
-      { path: 'filters',  name: 'filters',   component: () => import('../pages/dashboard/Filters.vue') },
+      { path: 'filters',      name: 'filters',      component: () => import('../pages/dashboard/Filters.vue') },
+      { path: 'superconfig',  name: 'superconfig',  component: () => import('../pages/dashboard/SuperConfig.vue'), meta: { requiresSuperAdmin: true } },
     ]
   },
 ]
@@ -30,6 +31,10 @@ router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { name: 'login', query: { redirect: to.fullPath } }
+  if (to.meta.requiresSuperAdmin) {
+    const { data: admin } = await supabase.from('admin_users').select('role').eq('id', session.user.id).single()
+    if (admin?.role !== 'superadmin') return { name: 'dashboard' }
+  }
   return true
 })
 

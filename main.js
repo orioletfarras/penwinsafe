@@ -6,6 +6,8 @@ const proxy = require('./src/socks-proxy')
 const activation = require('./src/activation')
 const telemetry = require('./src/telemetry')
 const rtc = require('./src/rtc')
+const wireguard = require('./src/wireguard')
+const updater   = require('./src/updater')
 
 app.setName('PenwinSafe')
 
@@ -62,6 +64,8 @@ async function createWindow() {
 
   mainWindow.webContents.once('did-finish-load', () => {
     rtc.init(mainWindow)
+    wireguard.init().then(() => wireguard.startMonitor())
+    updater.init(mainWindow)
   })
 }
 
@@ -76,7 +80,10 @@ ipcMain.handle('check-activation', () => {
 // IPC: activate device with center code
 ipcMain.handle('activate', async (_, code, name) => {
   const result = await activation.activate(code, name)
-  if (result.ok) rtc.init(mainWindow)
+  if (result.ok) {
+    rtc.init(mainWindow)
+    wireguard.init().catch(() => {})
+  }
   return result
 })
 

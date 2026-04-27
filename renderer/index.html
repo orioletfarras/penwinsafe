@@ -1000,6 +1000,47 @@
     }
 
     init()
+
+    // ── Auto-update banner ─────────────────────────────────────────────────
+    ;(function initUpdater() {
+      const banner = document.createElement('div')
+      banner.id = 'update-banner'
+      banner.style.cssText = `
+        display:none; position:fixed; bottom:12px; right:12px; z-index:9999;
+        background:#1e293b; color:#f1f5f9; border-radius:10px; padding:12px 16px;
+        font-size:12px; box-shadow:0 4px 20px rgba(0,0,0,0.3); max-width:280px;
+        font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
+      `
+      document.body.appendChild(banner)
+
+      if (!window.penwinsafe?.onUpdateAvailable) return
+
+      window.penwinsafe.onUpdateAvailable(version => {
+        banner.innerHTML = `
+          <div style="font-weight:600;margin-bottom:4px">Nueva versión disponible</div>
+          <div style="color:#94a3b8;margin-bottom:10px">v${version} — descargando en segundo plano...</div>
+          <div id="update-progress-bar" style="background:#334155;border-radius:4px;height:4px;overflow:hidden">
+            <div id="update-progress-fill" style="background:#006fff;height:100%;width:0%;transition:width 0.3s"></div>
+          </div>`
+        banner.style.display = 'block'
+      })
+
+      window.penwinsafe.onUpdateProgress(pct => {
+        const fill = document.getElementById('update-progress-fill')
+        if (fill) fill.style.width = pct + '%'
+      })
+
+      window.penwinsafe.onUpdateDownloaded(version => {
+        banner.innerHTML = `
+          <div style="font-weight:600;margin-bottom:4px">✓ Actualización lista</div>
+          <div style="color:#94a3b8;margin-bottom:10px">v${version} descargada. Se instalará al cerrar.</div>
+          <button onclick="window.penwinsafe.installUpdate()" style="
+            background:#006fff;color:#fff;border:none;border-radius:6px;
+            padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;width:100%
+          ">Reiniciar ahora</button>`
+        banner.style.display = 'block'
+      })
+    })()
   </script>
 </body>
 </html>

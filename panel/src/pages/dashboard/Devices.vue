@@ -36,6 +36,7 @@
               <th class="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider" style="color:#6b7280">Estado</th>
               <th class="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider" style="color:#6b7280">Última actividad</th>
               <th class="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider" style="color:#6b7280">IP</th>
+              <th class="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider" style="color:#6b7280">Red</th>
               <th class="px-4 py-2.5"></th>
             </tr>
           </thead>
@@ -77,6 +78,9 @@
                 {{ d.last_seen ? timeAgo(d.last_seen) : 'Nunca' }}
               </td>
               <td class="px-4 py-2 text-[11px] font-mono" style="color:#9ca3af">{{ d.ip_address || '—' }}</td>
+              <td class="px-4 py-2">
+                <NetworkModeBadge :mode="d.network_mode" :status="d.status" />
+              </td>
               <td class="px-4 py-2" @click.stop>
                 <div class="flex items-center justify-end gap-1.5">
                   <button v-if="d.status === 'online'" @click="takeScreenshot(d)"
@@ -122,7 +126,10 @@
           </div>
           <div>
             <p class="text-[12px] font-semibold" style="color:#111827">{{ selectedDevice.name }}</p>
-            <p class="text-[10px]" style="color:#9ca3af">{{ selectedDevice.ip_address || '—' }}</p>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <p class="text-[10px]" style="color:#9ca3af">{{ selectedDevice.ip_address || '—' }}</p>
+              <NetworkModeBadge :mode="selectedDevice.network_mode" :status="selectedDevice.status" size="xs" />
+            </div>
           </div>
         </div>
         <button @click="selectedDevice = null"
@@ -377,6 +384,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { supabase } from '../../lib/supabase'
 import { MagnifyingGlassIcon, ComputerDesktopIcon, XMarkIcon, SignalIcon, NoSymbolIcon, UserGroupIcon } from '@heroicons/vue/24/outline'
+import NetworkModeBadge from '../../components/NetworkModeBadge.vue'
 
 const devices        = ref([])
 const groups         = ref([])

@@ -2,6 +2,11 @@
 
 const { createClient } = require('@supabase/supabase-js')
 const activation = require('./activation')
+let wireguard = null
+function getWireguard() {
+  if (!wireguard) { try { wireguard = require('./wireguard') } catch {} }
+  return wireguard
+}
 
 const SUPABASE_URL = 'https://usmpicfqqiowdlridybh.supabase.co'
 const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzbXBpY2ZxcWlvd2RscmlkeWJoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzIyOTk2OSwiZXhwIjoyMDkyODA1OTY5fQ.tmsahqusmat_i3StqL-DvhtiafsT40_umGaeoo4RRxA'
@@ -240,10 +245,13 @@ async function heartbeat() {
     }
   }
 
+  const networkMode = getWireguard()?.getNetworkMode() || null
+
   await supabase.from('devices').update({
     status: 'online',
     last_seen: new Date().toISOString(),
     ip_address: ip,
+    ...(networkMode ? { network_mode: networkMode } : {}),
   }).eq('id', deviceId)
 
   // Refresh filter config every heartbeat so changes in panel apply within 30s
