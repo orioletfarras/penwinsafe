@@ -911,10 +911,7 @@ async function cfVerify() {
   try {
     const result = await cfCallApi({ action: 'verify', account_id: cfForm.value.account_id.trim(), api_token: cfForm.value.api_token.trim() })
     if (result.ok) {
-      await supabase.from('cloudflare_configs').upsert({
-        org_id: selectedOrgId.value, account_id: cfForm.value.account_id.trim(), api_token: cfForm.value.api_token.trim(),
-        last_check_ok: true, last_check_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      })
+      // Credentials already saved server-side by the edge function
       cfCfg.value.last_check_ok = true
       if (!cfCategories.value.length) await cfLoadCats()
     } else {

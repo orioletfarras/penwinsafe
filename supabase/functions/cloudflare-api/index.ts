@@ -238,6 +238,16 @@ serve(async (req) => {
       const cf = new CF(body.account_id, body.api_token)
       await cf.verifyToken()
       const account = await cf.getAccount()
+      // Save credentials server-side via service_role (bypasses RLS)
+      await supabase.from('cloudflare_configs').upsert({
+        org_id:         org_id,
+        account_id:     body.account_id,
+        api_token:      body.api_token,
+        last_check_ok:  true,
+        last_check_at:  new Date().toISOString(),
+        last_check_msg: `Cuenta verificada: ${account.name}`,
+        updated_at:     new Date().toISOString(),
+      })
       return json({ ok: true, account_name: account.name, account_type: account.type })
     }
 
