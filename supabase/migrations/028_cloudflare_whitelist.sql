@@ -21,7 +21,7 @@ create policy "admin_read_cloudflare" on cloudflare_configs
   for select using (
     exists (
       select 1 from admin_users
-      where admin_users.user_id = auth.uid()
+      where admin_users.id = auth.uid()
       and admin_users.org_id = cloudflare_configs.org_id
     )
   );

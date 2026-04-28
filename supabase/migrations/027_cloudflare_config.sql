@@ -61,7 +61,7 @@ create policy "superadmin_all_cloudflare" on cloudflare_configs
   for all using (
     exists (
       select 1 from admin_users
-      where admin_users.user_id = auth.uid()
+      where admin_users.id = auth.uid()
       and admin_users.role = 'superadmin'
     )
   );
