@@ -30,14 +30,12 @@ class CF {
     this.token = token
   }
 
-  private headers() {
-    return { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' }
-  }
-
   private async req(method: string, path: string, body?: unknown) {
+    const headers: Record<string, string> = { 'Authorization': `Bearer ${this.token}` }
+    if (body !== undefined) headers['Content-Type'] = 'application/json'
     const res = await fetch(`${this.base}${path}`, {
       method,
-      headers: this.headers(),
+      headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
     const data = await res.json()
