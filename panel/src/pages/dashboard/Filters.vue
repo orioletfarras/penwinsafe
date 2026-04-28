@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-2xl space-y-4">
+  <div class="space-y-4">
 
     <div>
       <p class="text-[13px] font-semibold" style="color:#111827">Filtros de palabras clave</p>
@@ -10,7 +10,7 @@
 
     <!-- Categories -->
     <div v-for="cat in categories" :key="cat.id"
-      class="rounded overflow-hidden" style="background:#ffffff;border:1px solid #e5e7eb">
+      class="card overflow-hidden">
 
       <!-- Cat header -->
       <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid #e5e7eb">
@@ -96,8 +96,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { supabase } from '../../lib/supabase'
+import { activeOrgId } from '../../lib/orgStore'
 
 const saving   = ref(false)
 const savedMsg = ref('')
@@ -407,25 +408,18 @@ const customWords  = reactive({})
 const enabledCats  = reactive({})
 const expandedCats = reactive({})
 const newWord      = reactive({})
-const orgId        = ref('')
-
-onMounted(async () => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-  const { data: admin } = await supabase.from('admin_users').select('org_id').eq('id', user.id).single()
-  if (!admin) return
-  orgId.value = admin.org_id
-
-  // Load saved filter config from org settings (stored in organizations.filter_config jsonb)
-  const { data: org } = await supabase.from('organizations').select('filter_config').eq('id', admin.org_id).single()
+async function loadConfig() {
+  const { data: org } = await supabase.from('organizations').select('filter_config').eq('id', activeOrgId.value).single()
   const config = org?.filter_config || {}
-
   categories.forEach(cat => {
-    customWords[cat.id]  = config[cat.id]?.custom || []
-    enabledCats[cat.id]  = config[cat.id]?.enabled !== false
-    newWord[cat.id]      = ''
+    customWords[cat.id] = config[cat.id]?.custom || []
+    enabledCats[cat.id] = config[cat.id]?.enabled !== false
+    newWord[cat.id]     = ''
   })
-})
+}
+
+onMounted(loadConfig)
+watch(activeOrgId, loadConfig)
 
 function toggleCat(id) {
   enabledCats[id] = enabledCats[id] === false ? true : false
@@ -444,7 +438,7 @@ function removeCustom(catId, idx) {
 }
 
 async function saveFilters() {
-  if (!orgId.value) return
+  if (!activeOrgId.value) return
   saving.value = true
   savedMsg.value = ''
 
@@ -459,7 +453,7 @@ async function saveFilters() {
   const { error } = await supabase
     .from('organizations')
     .update({ filter_config: config })
-    .eq('id', orgId.value)
+    .eq('id', activeOrgId.value)
 
   saving.value = false
   savedMsg.value = error ? `Error: ${error.message}` : 'Configuración guardada'

@@ -15,9 +15,14 @@ const routes = [
       { path: 'alerts',   name: 'alerts',    component: () => import('../pages/dashboard/Alerts.vue') },
       { path: 'reports',  name: 'reports',   component: () => import('../pages/dashboard/Reports.vue') },
       { path: 'settings', name: 'settings',  component: () => import('../pages/dashboard/Settings.vue') },
-      { path: 'filters',      name: 'filters',      component: () => import('../pages/dashboard/Filters.vue') },
-      { path: 'users',        name: 'users',        component: () => import('../pages/dashboard/Users.vue') },
-      { path: 'superconfig',  name: 'superconfig',  component: () => import('../pages/dashboard/SuperConfig.vue'), meta: { requiresSuperAdmin: true } },
+      { path: 'filters',        name: 'filters',        component: () => import('../pages/dashboard/Filters.vue') },
+      { path: 'users',          name: 'users',          component: () => import('../pages/dashboard/Users.vue') },
+      { path: 'audit',          name: 'audit',          component: () => import('../pages/dashboard/AuditLog.vue') },
+      { path: 'custom-alerts',  name: 'custom-alerts',  component: () => import('../pages/dashboard/CustomAlerts.vue') },
+      { path: 'kiosk',          name: 'kiosk',          component: () => import('../pages/dashboard/KioskSchedule.vue') },
+      { path: 'superconfig',    name: 'superconfig',    component: () => import('../pages/dashboard/SuperConfig.vue'), meta: { requiresSuperAdmin: true } },
+      { path: 'cloudflare',     name: 'cloudflare',     component: () => import('../pages/dashboard/CloudflareConfig.vue'), meta: { requiresSuperAdmin: true } },
+      { path: 'devices/:id',   name: 'device-detail',  component: () => import('../pages/dashboard/DeviceDetail.vue') },
     ]
   },
 ]

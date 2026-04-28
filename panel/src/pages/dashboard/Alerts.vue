@@ -1,11 +1,25 @@
 <template>
   <div class="space-y-3">
 
+    <!-- Skeleton -->
+    <template v-if="loading">
+      <div class="grid grid-cols-4 gap-3">
+        <div v-for="i in 4" :key="i" class="card px-3 py-3 flex items-center gap-3">
+          <Skeleton height="8px" width="8px" class-name="rounded-full flex-shrink-0" />
+          <div class="space-y-1.5 flex-1"><Skeleton height="20px" width="40px" /><Skeleton height="10px" width="60px" /></div>
+        </div>
+      </div>
+      <div class="card overflow-hidden">
+        <div class="px-4 py-3" style="border-bottom:1px solid #f0f2f5"><Skeleton height="12px" width="160px" /></div>
+        <div class="p-4 space-y-3"><Skeleton v-for="i in 5" :key="i" height="64px" /></div>
+      </div>
+    </template>
+
+    <template v-else>
     <!-- Stat strip -->
     <div class="grid grid-cols-4 gap-3">
       <div v-for="s in alertStats" :key="s.label"
-        class="rounded px-3 py-2.5 flex items-center gap-3"
-        style="background:#ffffff;border:1px solid #e5e7eb">
+        class="card px-3 py-3 flex items-center gap-3">
         <span class="w-2 h-2 rounded-full flex-shrink-0" :class="s.dot"></span>
         <div>
           <p class="text-[20px] font-bold leading-none" style="color:#111827">{{ s.count }}</p>
@@ -15,20 +29,26 @@
     </div>
 
     <!-- Lista de alertas -->
-    <div class="rounded overflow-hidden" style="background:#ffffff;border:1px solid #e5e7eb">
-      <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid #e5e7eb">
+    <div class="card overflow-hidden">
+      <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid #f0f2f5">
         <div class="flex items-center gap-1.5">
           <SparklesIcon class="w-3 h-3" style="color:#7c3aed" />
-          <p class="text-[10px] font-semibold uppercase tracking-wider" style="color:#9ca3af">Alertas generadas por IA</p>
+          <p class="section-label">Alertas generadas por IA</p>
         </div>
-        <label class="flex items-center gap-2 text-[11px] cursor-pointer" style="color:#6b7280">
-          <input type="checkbox" v-model="showResolved" class="rounded" style="accent-color:#006fff" />
-          Mostrar resueltas
-        </label>
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-2 text-[11px] cursor-pointer" style="color:#6b7280">
+            <input type="checkbox" v-model="showResolved" class="rounded" style="accent-color:#006fff" />
+            Mostrar resueltas
+          </label>
+          <button @click="exportCSV" class="btn btn-secondary btn-sm">
+            <ArrowDownTrayIcon class="w-3 h-3" /> Exportar CSV
+          </button>
+        </div>
       </div>
 
       <div>
-        <div v-for="a in filteredAlerts" :key="a.id"
+        <TransitionGroup name="alert-row" tag="div">
+        <div v-for="a in pagedAlerts" :key="a.id"
           class="px-4 py-3 transition-colors"
           :style="[
             'border-bottom:1px solid #f3f4f6',
@@ -58,35 +78,60 @@
 
               <div class="flex items-center justify-between mt-2">
                 <p class="text-[10px]" style="color:#9ca3af">{{ formatDate(a.created_at) }}</p>
-                <button v-if="!a.resolved" @click="resolve(a)"
-                  class="text-[11px] font-medium px-2.5 py-1 rounded transition-colors"
-                  style="color:#006fff;background:#ffffff;border:1px solid #e5e7eb">
+                <button v-if="!a.resolved" @click="resolve(a)" class="btn btn-secondary btn-sm">
                   Marcar como resuelta
                 </button>
-                <span v-else class="text-[10px]" style="color:#9ca3af">Resuelta</span>
+                <span v-else class="text-[10px]" style="color:#9ca3af">
+                  Resuelta{{ a.resolved_by ? ` por ${a.resolved_by.split('@')[0]}` : '' }}
+                  {{ a.resolved_at ? '· ' + formatDate(a.resolved_at) : '' }}
+                </span>
               </div>
             </div>
           </div>
         </div>
-        <div v-if="filteredAlerts.length === 0" class="px-4 py-12 text-center text-[12px]" style="color:#9ca3af">
-          Sin alertas pendientes
+        </TransitionGroup>
+        <div v-if="filteredAlerts.length === 0" class="empty-state">
+          <div class="empty-state-icon"><SparklesIcon /></div>
+          <p class="empty-state-title">Sin alertas pendientes</p>
+          <p class="empty-state-desc">Cuando se detecte actividad sospechosa aparecerá aquí.</p>
         </div>
+        <Pagination v-if="filteredAlerts.length > PAGE_SIZE"
+          :model-value="alertPage" :total="filteredAlerts.length" :per-page="PAGE_SIZE"
+          @change="alertPage = $event" />
       </div>
     </div>
+    </template> <!-- end v-else -->
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { supabase } from '../../lib/supabase'
-import { SparklesIcon, ExclamationTriangleIcon, ExclamationCircleIcon, InformationCircleIcon, FireIcon } from '@heroicons/vue/24/outline'
+import { logAction } from '../../lib/audit'
+let currentUserEmail = ''
+import { SparklesIcon, ExclamationTriangleIcon, ExclamationCircleIcon, InformationCircleIcon, FireIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
+import Pagination from '../../components/Pagination.vue'
+import Skeleton from '../../components/Skeleton.vue'
+import { useToast } from '../../lib/toast'
 
+const { error: toastError, success: toastSuccess } = useToast()
+
+const loading      = ref(true)
 const alerts       = ref([])
 const showResolved = ref(false)
+const alertPage    = ref(1)
+const PAGE_SIZE    = 15
 
 const filteredAlerts = computed(() =>
   alerts.value.filter(a => showResolved.value || !a.resolved)
 )
+
+watch(() => showResolved.value, () => { alertPage.value = 1 })
+
+const pagedAlerts = computed(() => {
+  const start = (alertPage.value - 1) * PAGE_SIZE
+  return filteredAlerts.value.slice(start, start + PAGE_SIZE)
+})
 
 const alertStats = computed(() => [
   { label: 'Criticas',  count: alerts.value.filter(a => a.severity === 'critical' && !a.resolved).length, dot: 'bg-red-500' },
@@ -96,8 +141,12 @@ const alertStats = computed(() => [
 ])
 
 onMounted(async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  currentUserEmail = user?.email || user?.id || 'admin'
+
   const { data } = await supabase.from('alerts').select('*').order('created_at', { ascending: false }).limit(50)
   alerts.value = data || []
+  loading.value = false
 
   supabase.channel('alerts-rt')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, p => {
@@ -106,9 +155,34 @@ onMounted(async () => {
     .subscribe()
 })
 
+function exportCSV() {
+  const rows = [['Fecha', 'Severidad', 'Mensaje', 'Resumen IA', 'Resuelta']]
+  filteredAlerts.value.forEach(a => {
+    rows.push([
+      new Date(a.created_at).toLocaleString('es-ES'),
+      a.severity,
+      `"${a.message?.replace(/"/g, '""')}"`,
+      `"${(a.ai_summary || '').replace(/"/g, '""')}"`,
+      a.resolved ? 'Sí' : 'No',
+    ])
+  })
+  const csv = rows.map(r => r.join(',')).join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = `alertas_${new Date().toISOString().split('T')[0]}.csv`
+  a.click(); URL.revokeObjectURL(url)
+}
+
 async function resolve(alert) {
-  await supabase.from('alerts').update({ resolved: true, resolved_at: new Date().toISOString() }).eq('id', alert.id)
+  const now = new Date().toISOString()
+  const { error } = await supabase.from('alerts').update({ resolved: true, resolved_at: now, resolved_by: currentUserEmail }).eq('id', alert.id)
+  if (error) { toastError('Error al resolver alerta: ' + error.message); return }
   alert.resolved = true
+  alert.resolved_at = now
+  alert.resolved_by = currentUserEmail
+  logAction('alert_resolve', alert.message?.slice(0, 60))
+  toastSuccess('Alerta marcada como resuelta')
 }
 
 function severityBg(s)        { return { info: 'bg-blue-50', warning: 'bg-yellow-50', danger: 'bg-orange-50', critical: 'bg-red-50' }[s] }
@@ -117,3 +191,23 @@ function severityPill(s)      { return { info: 'bg-blue-50 text-blue-600 border 
 function severityIcon(s)      { return { info: InformationCircleIcon, warning: ExclamationTriangleIcon, danger: ExclamationCircleIcon, critical: FireIcon }[s] || ExclamationTriangleIcon }
 function formatDate(d)        { return new Date(d).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) }
 </script>
+
+<style scoped>
+.alert-row-leave-active {
+  transition: opacity 0.3s ease, max-height 0.3s ease, padding 0.3s ease;
+  overflow: hidden;
+  max-height: 200px;
+}
+.alert-row-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.alert-row-enter-active {
+  transition: opacity 0.2s ease;
+}
+.alert-row-enter-from {
+  opacity: 0;
+}
+</style>

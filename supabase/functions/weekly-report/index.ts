@@ -6,12 +6,18 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
-const anthropic = new Anthropic({
-  apiKey: Deno.env.get('ANTHROPIC_API_KEY')!
-})
+const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
+const anthropic = anthropicKey ? new Anthropic({ apiKey: anthropicKey }) : null
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
 
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: corsHeaders })
 
   const weekEnd = new Date()
   weekEnd.setHours(23, 59, 59, 999)
@@ -81,13 +87,39 @@ Escribe un informe breve en markdown (máx 300 palabras) para el tutor con:
 
 Sé objetivo y profesional. Usa lenguaje accesible para docentes.`
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }]
-    })
+    let summaryMd: string
 
-    const summaryMd = (response.content[0] as { text: string }).text
+    if (anthropic) {
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      })
+      summaryMd = (response.content[0] as { text: string }).text
+    } else {
+      // Informe sin IA — generado a partir de los datos
+      const topCatList = Object.entries(topCategories).sort((a,b) => b[1]-a[1]).slice(0,3).map(([c,n]) => `- **${c}**: ${n} visitas`).join('\n') || '- Sin datos'
+      const riskLine = riskSearches.length > 0
+        ? `\n⚠️ Se detectaron **${riskSearches.length}** búsquedas de riesgo alto.`
+        : '\n✅ No se detectaron búsquedas de riesgo.'
+
+      summaryMd = `## Resumen de actividad — ${device.name}
+
+**Período:** ${weekStart.toLocaleDateString('es-ES')} — ${weekEnd.toLocaleDateString('es-ES')}
+
+### Actividad general
+- Búsquedas realizadas: **${searches?.length || 0}**
+- Páginas visitadas: **${urls?.length || 0}**
+- Intentos bloqueados: **${blocked?.length || 0}**
+- Alertas generadas: **${alerts?.length || 0}**
+
+### Categorías más visitadas
+${topCatList}
+${riskLine}
+
+---
+*Informe generado automáticamente sin IA. Configura ANTHROPIC_API_KEY para obtener análisis detallados.*`
+    }
 
     const riskScore = Math.min(100, (riskSearches.length * 20) + (alerts?.length || 0) * 10)
 
@@ -104,6 +136,6 @@ Sé objetivo y profesional. Usa lenguaje accesible para docentes.`
   }
 
   return new Response(JSON.stringify({ generated }), {
-    headers: { 'Content-Type': 'application/json' }
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
 })

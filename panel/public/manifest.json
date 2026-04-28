@@ -1,0 +1,12 @@
+{
+  "name": "PenwinSafe",
+  "short_name": "PenwinSafe",
+  "description": "Panel de gestión PenwinSafe",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#006fff",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

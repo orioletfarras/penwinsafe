@@ -7,29 +7,38 @@
         <p class="text-[13px] font-semibold" style="color:#111827">Informes semanales generados por IA</p>
         <p class="text-[11px] mt-0.5" style="color:#6b7280">Se generan automaticamente cada domingo para cada dispositivo</p>
       </div>
-      <button @click="generateNow" :disabled="generating"
-        class="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded transition-colors disabled:opacity-50"
-        style="background:#006fff;color:#ffffff;border:1px solid #006fff">
-        <SparklesIcon class="w-3.5 h-3.5" />
-        {{ generating ? 'Generando...' : 'Generar ahora' }}
-      </button>
+      <div class="flex items-center gap-2">
+        <button @click="exportPDF" class="btn btn-secondary">
+          <ArrowDownTrayIcon class="w-3.5 h-3.5" /> Exportar PDF
+        </button>
+        <button @click="generateNow" :disabled="generating" class="btn btn-primary">
+          <SparklesIcon class="w-3.5 h-3.5" />
+          {{ generating ? 'Generando...' : 'Generar ahora' }}
+        </button>
+      </div>
     </div>
     <p v-if="generateMsg" class="text-[12px] mt-2 text-right"
       :style="generateOk ? 'color:#16a34a' : 'color:#dc2626'">{{ generateMsg }}</p>
 
-    <!-- Filtro por dispositivo -->
-    <div>
+    <!-- Filtros -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <select v-model="selectedGroup" @change="selectedDevice = ''"
+        class="rounded px-2.5 py-1.5 text-[12px] focus:outline-none transition-colors"
+        style="background:#ffffff;border:1px solid #e5e7eb;color:#374151">
+        <option value="">Todas las clases</option>
+        <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+      </select>
       <select v-model="selectedDevice"
         class="rounded px-2.5 py-1.5 text-[12px] focus:outline-none transition-colors"
         style="background:#ffffff;border:1px solid #e5e7eb;color:#374151">
         <option value="">Todos los dispositivos</option>
-        <option v-for="d in devices" :key="d.id" :value="d.id">{{ d.name }}</option>
+        <option v-for="d in (selectedGroup ? devices.filter(x => x.group_id === selectedGroup) : devices)" :key="d.id" :value="d.id">{{ d.name }}</option>
       </select>
     </div>
 
     <!-- Sin informes -->
     <div v-if="!loading && filteredReports.length === 0"
-      class="rounded p-12 text-center" style="background:#ffffff;border:1px solid #e5e7eb">
+      class="card p-12 text-center">
       <DocumentTextIcon class="w-7 h-7 mx-auto mb-3" style="color:#9ca3af" />
       <p class="text-[13px] font-medium mb-1" style="color:#111827">Sin informes aun</p>
       <p class="text-[12px]" style="color:#6b7280">Los informes se generan cada domingo o puedes generarlos manualmente.</p>
@@ -42,7 +51,7 @@
 
     <!-- Lista de informes -->
     <div v-for="r in filteredReports" :key="r.id"
-      class="rounded overflow-hidden" style="background:#ffffff;border:1px solid #e5e7eb">
+      class="card overflow-hidden">
 
       <!-- Report header row -->
       <div class="px-4 py-3 flex items-center justify-between"
@@ -91,31 +100,44 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { supabase } from '../../lib/supabase'
-import { SparklesIcon, DocumentTextIcon, ChevronDownIcon } from '@heroicons/vue/24/outline'
+import { activeOrgId } from '../../lib/orgStore'
+import { SparklesIcon, DocumentTextIcon, ChevronDownIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
 
 const reports        = ref([])
 const devices        = ref([])
+const groups         = ref([])
 const selectedDevice = ref('')
+const selectedGroup  = ref('')
 const loading        = ref(true)
 const generating     = ref(false)
 
-const filteredReports = computed(() =>
-  selectedDevice.value
-    ? reports.value.filter(r => r.device_id === selectedDevice.value)
-    : reports.value
-)
-
-onMounted(async () => {
-  const [{ data: reps }, { data: devs }] = await Promise.all([
-    supabase.from('weekly_reports').select('*, devices(name)').order('week_start', { ascending: false }).limit(30),
-    supabase.from('devices').select('id, name').order('name'),
-  ])
-  reports.value  = (reps || []).map(r => ({ ...r, _expanded: false }))
-  devices.value  = devs || []
-  loading.value  = false
+const filteredReports = computed(() => {
+  let r = reports.value
+  if (selectedGroup.value) {
+    const groupDeviceIds = devices.value.filter(d => d.group_id === selectedGroup.value).map(d => d.id)
+    r = r.filter(rep => groupDeviceIds.includes(rep.device_id))
+  }
+  if (selectedDevice.value) r = r.filter(rep => rep.device_id === selectedDevice.value)
+  return r
 })
+
+async function loadData() {
+  loading.value = true
+  const [{ data: reps }, { data: devs }, { data: grps }] = await Promise.all([
+    supabase.from('weekly_reports').select('*, devices(name, group_id)').order('week_start', { ascending: false }).limit(50),
+    supabase.from('devices').select('id, name, group_id').order('name'),
+    supabase.from('groups').select('id, name').eq('org_id', activeOrgId.value).order('name'),
+  ])
+  reports.value = (reps || []).map(r => ({ ...r, _expanded: false }))
+  devices.value = devs || []
+  groups.value  = grps || []
+  loading.value = false
+}
+
+onMounted(loadData)
+watch(activeOrgId, () => { selectedDevice.value = ''; selectedGroup.value = ''; loadData() })
 
 const generateMsg = ref('')
 const generateOk  = ref(false)
@@ -131,7 +153,7 @@ async function generateNow() {
     generateMsg.value = count > 0
       ? `${count} informe(s) generado(s) correctamente`
       : 'No hay datos suficientes para generar informes esta semana'
-    const { data: reps } = await supabase.from('weekly_reports').select('*, devices(name)').order('week_start', { ascending: false }).limit(30)
+    const { data: reps } = await supabase.from('weekly_reports').select('*, devices(name, group_id)').order('week_start', { ascending: false }).limit(50)
     reports.value = (reps || []).map(r => ({ ...r, _expanded: false }))
   } catch (e) {
     generateOk.value = false
@@ -139,6 +161,51 @@ async function generateNow() {
   } finally {
     generating.value = false
   }
+}
+
+function exportPDF() {
+  const reps = filteredReports.value
+  if (!reps.length) return
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Informes PenwinSafe</title>
+  <style>
+    body { font-family: system-ui, sans-serif; color: #111827; padding: 32px; max-width: 780px; margin: 0 auto; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    .sub { color: #6b7280; font-size: 13px; margin-bottom: 32px; }
+    .report { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 24px; page-break-inside: avoid; }
+    .report-header { padding: 14px 18px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: flex-start; }
+    .device-name { font-size: 14px; font-weight: 600; }
+    .period { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+    .risk-low { background: #f0fdf4; color: #15803d; }
+    .risk-mid { background: #fffbeb; color: #b45309; }
+    .risk-high { background: #fef2f2; color: #dc2626; }
+    .summary { padding: 16px 18px; font-size: 12px; line-height: 1.7; color: #374151; white-space: pre-wrap; }
+    .cats { padding: 8px 18px; border-top: 1px solid #f3f4f6; display: flex; gap: 6px; flex-wrap: wrap; }
+    .cat { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #eff6ff; color: #2563eb; }
+    @media print { body { padding: 16px } }
+  </style></head><body>
+  <h1>Informes semanales — PenwinSafe</h1>
+  <p class="sub">Generado el ${new Date().toLocaleDateString('es-ES', { dateStyle: 'long' })}</p>
+  ${reps.map(r => `
+  <div class="report">
+    <div class="report-header">
+      <div>
+        <div class="device-name">${r.devices?.name || '—'}</div>
+        <div class="period">Semana del ${formatDate(r.week_start)} al ${formatDate(r.week_end)}</div>
+      </div>
+      <span class="badge ${r.risk_score >= 70 ? 'risk-high' : r.risk_score >= 40 ? 'risk-mid' : 'risk-low'}">Riesgo ${r.risk_score}/100</span>
+    </div>
+    ${r.top_categories && Object.keys(r.top_categories).length ? `<div class="cats">${Object.entries(r.top_categories).map(([c,n]) => `<span class="cat">${c}: ${n}</span>`).join('')}</div>` : ''}
+    <div class="summary">${r.summary_md || 'Sin resumen disponible'}</div>
+  </div>`).join('')}
+  </body></html>`
+
+  const win = window.open('', '_blank')
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => win.print()
 }
 
 function riskStyle(score) {

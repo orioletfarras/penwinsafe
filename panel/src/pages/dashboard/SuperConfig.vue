@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-2xl mx-auto space-y-6">
+  <div class="space-y-6">
 
     <!-- Header -->
     <div>
@@ -10,7 +10,7 @@
     </div>
 
     <!-- New school form -->
-    <div v-if="showNewOrg" class="rounded-xl p-6" style="background:#fff;border:1px solid #e5e7eb">
+    <div v-if="showNewOrg" class="card p-6">
       <div class="flex items-center gap-3 mb-5">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:#faf5ff">
           <PlusCircleIcon class="w-4 h-4" style="color:#7c3aed" />
@@ -73,7 +73,7 @@
     </div>
 
     <!-- UniFi Connection wizard -->
-    <div class="rounded-xl overflow-hidden" style="background:#fff;border:1px solid #e5e7eb">
+    <div class="card overflow-hidden">
 
       <!-- Header -->
       <div class="flex items-center gap-3 px-6 py-4" style="border-bottom:1px solid #f3f4f6">
@@ -252,7 +252,7 @@
     </div>
 
     <!-- PenwinSafe Network -->
-    <div class="rounded-xl p-6" style="background:#fff;border:1px solid #e5e7eb">
+    <div class="card p-6">
       <div class="flex items-center gap-3 mb-5">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center"
           :style="config.network_active ? 'background:#f0fdf4' : 'background:#f9fafb'">

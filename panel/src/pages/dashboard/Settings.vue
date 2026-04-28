@@ -1,8 +1,8 @@
 <template>
-  <div class="max-w-xl space-y-4">
+  <div class="space-y-4">
 
     <!-- Organizacion -->
-    <section class="rounded overflow-hidden" style="background:#ffffff;border:1px solid #e5e7eb">
+    <section class="card overflow-hidden">
       <div class="px-4 py-3" style="border-bottom:1px solid #e5e7eb">
         <p class="text-[10px] font-semibold uppercase tracking-wider" style="color:#9ca3af">Organizacion</p>
       </div>
@@ -26,7 +26,7 @@
     </section>
 
     <!-- Filtro DNS -->
-    <section class="rounded overflow-hidden" style="background:#ffffff;border:1px solid #e5e7eb">
+    <section class="card overflow-hidden">
       <div class="px-4 py-3" style="border-bottom:1px solid #e5e7eb">
         <p class="text-[10px] font-semibold uppercase tracking-wider" style="color:#9ca3af">Filtro DNS por defecto</p>
         <p class="text-[11px] mt-0.5" style="color:#6b7280">Se aplica a todos los grupos sin configuracion propia</p>
@@ -54,7 +54,7 @@
     </section>
 
     <!-- Codigo de centro -->
-    <section class="rounded overflow-hidden" style="background:#ffffff;border:1px solid #e5e7eb">
+    <section class="card overflow-hidden">
       <div class="px-4 py-3" style="border-bottom:1px solid #e5e7eb">
         <p class="text-[10px] font-semibold uppercase tracking-wider" style="color:#9ca3af">Codigo de centro</p>
         <p class="text-[11px] mt-0.5" style="color:#6b7280">Introduce este codigo al instalar PenwinSafe en un nuevo dispositivo</p>
@@ -86,8 +86,107 @@
       </div>
     </section>
 
+    <!-- API Key -->
+    <section class="card overflow-hidden">
+      <div class="px-4 py-3" style="border-bottom:1px solid #e5e7eb">
+        <div class="flex items-center gap-2">
+          <KeyIcon class="w-3.5 h-3.5" style="color:#9ca3af" />
+          <p class="text-[10px] font-semibold uppercase tracking-wider" style="color:#9ca3af">API pública</p>
+        </div>
+        <p class="text-[11px] mt-0.5" style="color:#6b7280">Integra PenwinSafe con tus propias herramientas mediante la API REST</p>
+      </div>
+      <div class="p-4 space-y-3">
+        <div v-if="apiKey">
+          <label class="block text-[11px] font-medium mb-1.5" style="color:#6b7280">Tu API key</label>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 px-3 py-2 rounded font-mono text-[12px]" style="background:#f9fafb;border:1px solid #e5e7eb;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              {{ apiKeyVisible ? apiKey : apiKey.slice(0, 8) + '•'.repeat(32) }}
+            </div>
+            <button @click="apiKeyVisible = !apiKeyVisible" class="btn btn-secondary btn-sm">{{ apiKeyVisible ? 'Ocultar' : 'Ver' }}</button>
+            <button @click="copyApiKey" class="btn btn-secondary btn-sm">
+              <ClipboardDocumentIcon class="w-3.5 h-3.5" />
+              {{ apiKeyCopied ? 'Copiado' : 'Copiar' }}
+            </button>
+          </div>
+        </div>
+        <div v-else class="text-[12px]" style="color:#6b7280">No tienes una API key generada todavía.</div>
+        <div class="flex items-center gap-2">
+          <button @click="generateApiKey" :disabled="generatingKey" class="btn btn-secondary btn-sm">
+            <ArrowPathIcon class="w-3.5 h-3.5" :class="generatingKey ? 'animate-spin' : ''" />
+            {{ apiKey ? 'Regenerar key' : 'Generar API key' }}
+          </button>
+        </div>
+        <div class="rounded p-3 text-[11px] leading-relaxed" style="background:#f9fafb;border:1px solid #e5e7eb;color:#6b7280">
+          <p class="font-semibold mb-1" style="color:#374151">Endpoints disponibles:</p>
+          <p><span class="font-mono" style="color:#006fff">GET /functions/v1/api/devices</span> — Lista de dispositivos</p>
+          <p><span class="font-mono" style="color:#006fff">GET /functions/v1/api/alerts</span> — Alertas activas</p>
+          <p class="mt-1">Incluye <span class="font-mono">Authorization: Bearer &lt;api-key&gt;</span> en el header.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2FA -->
+    <section class="card overflow-hidden">
+      <div class="px-4 py-3" style="border-bottom:1px solid #e5e7eb">
+        <div class="flex items-center gap-2">
+          <ShieldCheckIcon class="w-3.5 h-3.5" style="color:#9ca3af" />
+          <p class="text-[10px] font-semibold uppercase tracking-wider" style="color:#9ca3af">Autenticación en dos pasos (2FA)</p>
+        </div>
+        <p class="text-[11px] mt-0.5" style="color:#6b7280">Añade una capa extra de seguridad a tu cuenta</p>
+      </div>
+      <div class="p-4 space-y-3">
+        <!-- Active factors -->
+        <div v-if="mfaFactors.length">
+          <div v-for="f in mfaFactors" :key="f.id"
+            class="flex items-center justify-between px-3 py-2.5 rounded"
+            style="background:#f0fdf4;border:1px solid #bbf7d0">
+            <div class="flex items-center gap-2.5">
+              <ShieldCheckIcon class="w-4 h-4" style="color:#16a34a" />
+              <div>
+                <p class="text-[12px] font-medium" style="color:#166534">2FA activado</p>
+                <p class="text-[11px]" style="color:#4ade80">{{ f.friendly_name || 'Authenticator' }}</p>
+              </div>
+            </div>
+            <button @click="unenroll2FA(f.id)" class="btn btn-secondary btn-sm" style="color:#dc2626">Desactivar</button>
+          </div>
+        </div>
+        <!-- Enroll flow -->
+        <div v-else>
+          <div v-if="!mfaQR">
+            <p class="text-[12px] mb-3" style="color:#6b7280">Usa una aplicación como Google Authenticator o Authy para proteger tu cuenta.</p>
+            <button @click="enroll2FA" :disabled="mfaEnrolling" class="btn btn-primary btn-sm">
+              <QrCodeIcon class="w-3.5 h-3.5" />
+              {{ mfaEnrolling ? 'Generando...' : 'Activar 2FA' }}
+            </button>
+          </div>
+          <div v-else class="space-y-4">
+            <div class="flex gap-6 items-start">
+              <img :src="mfaQR" alt="QR 2FA" class="w-36 h-36 rounded border" style="border-color:#e5e7eb" />
+              <div>
+                <p class="text-[12px] font-medium mb-1" style="color:#111827">Escanea el código QR</p>
+                <p class="text-[11px] mb-3" style="color:#6b7280">Con tu app de autenticación (Google Authenticator, Authy, etc.)</p>
+                <p class="text-[10px] font-medium mb-1" style="color:#9ca3af">O introduce manualmente:</p>
+                <p class="font-mono text-[11px] px-2 py-1 rounded" style="background:#f9fafb;border:1px solid #e5e7eb;color:#374151;word-break:break-all">{{ mfaSecret }}</p>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] font-medium mb-1.5" style="color:#6b7280">Código de verificación</label>
+              <div class="flex gap-2">
+                <input v-model="mfaCode" placeholder="000 000" maxlength="7"
+                  class="input font-mono text-center text-[16px] tracking-widest w-36" />
+                <button @click="verify2FA" :disabled="mfaCode.replace(/\s/g,'').length < 6 || mfaVerifying" class="btn btn-primary disabled:opacity-50">
+                  {{ mfaVerifying ? 'Verificando...' : 'Confirmar' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p v-if="mfaMsg" class="text-[11px]" :class="mfaMsgOk ? 'text-green-700' : 'text-red-600'">{{ mfaMsg }}</p>
+      </div>
+    </section>
+
     <!-- Cuenta -->
-    <section class="rounded overflow-hidden" style="background:#ffffff;border:1px solid #e5e7eb">
+    <section class="card overflow-hidden">
       <div class="px-4 py-3" style="border-bottom:1px solid #e5e7eb">
         <p class="text-[10px] font-semibold uppercase tracking-wider" style="color:#9ca3af">Cuenta</p>
       </div>
@@ -121,7 +220,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { supabase } from '../../lib/supabase'
 import { selectedOrgId, orgSwitchKey } from '../../lib/orgStore'
-import { ClipboardDocumentIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import { ClipboardDocumentIcon, ArrowPathIcon, KeyIcon, ShieldCheckIcon, QrCodeIcon } from '@heroicons/vue/24/outline'
 
 const orgName     = ref('')
 const orgId       = ref('')
@@ -134,6 +233,23 @@ const savedMsg    = ref('')
 const pwMsg       = ref('')
 const copied      = ref(false)
 const regenerating = ref(false)
+
+// API Key
+const apiKey         = ref('')
+const apiKeyCopied   = ref(false)
+const generatingKey  = ref(false)
+const apiKeyVisible  = ref(false)
+
+// 2FA
+const mfaFactors     = ref([])
+const mfaEnrolling   = ref(false)
+const mfaQR          = ref('')
+const mfaSecret      = ref('')
+const mfaFactorId    = ref('')
+const mfaCode        = ref('')
+const mfaVerifying   = ref(false)
+const mfaMsg         = ref('')
+const mfaMsgOk       = ref(false)
 
 const filterLevels = [
   { value: 'family',   label: 'Family Filter',   desc: 'Bloquea contenido adulto, proxies y anuncios. Recomendado para primaria.' },
@@ -159,7 +275,12 @@ async function loadSettings() {
     orgName.value    = org.name
     orgId.value      = org.id
     centerCode.value = org.center_code || '—'
+    apiKey.value     = org.api_key || ''
   }
+
+  // Load 2FA factors
+  const { data: mfaData } = await supabase.auth.mfa.listFactors()
+  mfaFactors.value = mfaData?.totp || []
 }
 
 onMounted(loadSettings)
@@ -203,5 +324,58 @@ async function regenerateCode() {
     centerCode.value = data
   }
   regenerating.value = false
+}
+
+// ── API Key ────────────────────────────────────────────────────────────────
+async function generateApiKey() {
+  if (!orgId.value) return
+  generatingKey.value = true
+  const key = 'pws_' + Array.from(crypto.getRandomValues(new Uint8Array(24))).map(b => b.toString(16).padStart(2,'0')).join('')
+  const { error } = await supabase.from('organizations').update({ api_key: key }).eq('id', orgId.value)
+  if (!error) { apiKey.value = key; apiKeyVisible.value = true }
+  generatingKey.value = false
+}
+
+async function copyApiKey() {
+  await navigator.clipboard.writeText(apiKey.value)
+  apiKeyCopied.value = true
+  setTimeout(() => apiKeyCopied.value = false, 2000)
+}
+
+// ── 2FA ───────────────────────────────────────────────────────────────────
+async function enroll2FA() {
+  mfaEnrolling.value = true
+  mfaMsg.value = ''
+  const { data, error } = await supabase.auth.mfa.enroll({
+    factorType: 'totp',
+    issuer: 'PenwinSafe',
+    friendlyName: 'Authenticator',
+  })
+  mfaEnrolling.value = false
+  if (error) { mfaMsg.value = 'Error: ' + error.message; mfaMsgOk.value = false; return }
+  mfaQR.value      = data.totp.qr_code
+  mfaSecret.value  = data.totp.secret
+  mfaFactorId.value = data.id
+}
+
+async function verify2FA() {
+  mfaVerifying.value = true
+  mfaMsg.value = ''
+  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: mfaFactorId.value, code: mfaCode.value.replace(/\s/g,'') })
+  mfaVerifying.value = false
+  if (error) { mfaMsg.value = 'Código incorrecto, inténtalo de nuevo'; mfaMsgOk.value = false; return }
+  mfaMsg.value = '2FA activado correctamente'
+  mfaMsgOk.value = true
+  mfaQR.value = ''; mfaSecret.value = ''; mfaCode.value = ''
+  const { data } = await supabase.auth.mfa.listFactors()
+  mfaFactors.value = data?.totp || []
+}
+
+async function unenroll2FA(factorId) {
+  if (!confirm('¿Desactivar la autenticación en dos pasos?')) return
+  await supabase.auth.mfa.unenroll({ factorId })
+  mfaFactors.value = mfaFactors.value.filter(f => f.id !== factorId)
+  mfaMsg.value = '2FA desactivado'
+  mfaMsgOk.value = false
 }
 </script>

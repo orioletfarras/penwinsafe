@@ -7,29 +7,35 @@
         <p class="text-[13px] font-semibold" style="color:#111827">Clases y tutores</p>
         <p class="text-[11px] mt-0.5" style="color:#6b7280">Asigna tutores y configura qué categorías generan notificación por email</p>
       </div>
-      <button @click="openNew"
-        class="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded transition-colors"
-        style="background:#006fff;color:#ffffff">
+      <button @click="openNew" class="btn btn-primary">
         <PlusIcon class="w-3.5 h-3.5" />
         Nueva clase
       </button>
     </div>
 
     <!-- Skeleton -->
-    <div v-if="loading" class="space-y-2">
-      <div v-for="i in 3" :key="i" class="h-16 rounded animate-pulse" style="background:#ffffff;border:1px solid #e5e7eb"></div>
+    <div v-if="loading" class="card overflow-hidden">
+      <div v-for="i in 4" :key="i" class="px-4 py-3 flex items-center gap-4" style="border-bottom:1px solid #f3f4f6">
+        <Skeleton height="32px" width="32px" class-name="rounded flex-shrink-0" />
+        <div class="flex-1 space-y-2"><Skeleton height="13px" width="140px" /><Skeleton height="11px" width="200px" /></div>
+        <Skeleton height="24px" width="60px" class-name="rounded" />
+      </div>
     </div>
 
     <!-- Empty -->
-    <div v-else-if="groups.length === 0"
-      class="rounded p-12 text-center" style="background:#ffffff;border:1px solid #e5e7eb">
-      <UserGroupIcon class="w-7 h-7 mx-auto mb-3" style="color:#9ca3af" />
-      <p class="text-[13px] font-medium mb-1" style="color:#111827">Sin clases</p>
-      <p class="text-[12px]" style="color:#6b7280">Crea la primera clase para asignar dispositivos y tutores.</p>
+    <div v-else-if="groups.length === 0" class="card">
+      <div class="empty-state">
+        <div class="empty-state-icon"><UserGroupIcon /></div>
+        <p class="empty-state-title">Sin clases</p>
+        <p class="empty-state-desc">Crea la primera clase para asignar dispositivos y tutores.</p>
+        <button @click="openNew" class="btn btn-primary mt-4">
+          <PlusIcon class="w-3.5 h-3.5" /> Nueva clase
+        </button>
+      </div>
     </div>
 
     <!-- Groups list -->
-    <div v-else class="rounded overflow-hidden" style="background:#ffffff;border:1px solid #e5e7eb">
+    <div v-else class="card overflow-hidden">
       <div v-for="(g, i) in groups" :key="g.id"
         class="px-4 py-3 flex items-center gap-4 transition-colors"
         :style="i < groups.length - 1 ? 'border-bottom:1px solid #f3f4f6' : ''"
@@ -205,7 +211,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { supabase } from '../../lib/supabase'
+import { cached, invalidate } from '../../lib/cache'
 import { PlusIcon, UserGroupIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { useToast } from '../../lib/toast'
+import Skeleton from '../../components/Skeleton.vue'
+import { activeOrgId } from '../../lib/orgStore'
+
+const { error: toastError, success: toastSuccess } = useToast()
 
 const groups    = ref([])
 const loading   = ref(true)
@@ -248,10 +260,22 @@ const catStyle = id => CAT_STYLE[id] || 'background:#f9fafb;color:#6b7280;border
 onMounted(loadGroups)
 
 async function loadGroups() {
-  loading.value = true
-  const { data } = await supabase.from('groups').select('*, devices(id)').order('name')
-  groups.value = (data || []).map(g => ({ ...g, _deviceCount: g.devices?.length || 0 }))
-  loading.value = false
+  // Mostrar caché inmediatamente si existe
+  const hit = cached('groups', fetchGroups)
+  if (hit) { groups.value = hit; loading.value = false }
+  // Si no hay caché esperamos la respuesta
+  else {
+    loading.value = true
+    const data = await fetchGroups()
+    groups.value = data
+    loading.value = false
+  }
+}
+
+async function fetchGroups() {
+  const { data } = await supabase.from('groups').select('*, devices(id)').eq('org_id', activeOrgId.value).order('name')
+  const result = (data || []).map(g => ({ ...g, _deviceCount: g.devices?.length || 0 }))
+  return result
 }
 
 function openNew() {
@@ -294,9 +318,6 @@ async function saveGroup() {
   saving.value = true
   saveError.value = ''
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: admin }    = await supabase.from('admin_users').select('org_id').eq('id', user.id).single()
-
   const payload = {
     name:              modal.value.name.trim(),
     tutor_name:        modal.value.tutor_name  || null,
@@ -308,10 +329,12 @@ async function saveGroup() {
 
   const { error } = modal.value.id
     ? await supabase.from('groups').update(payload).eq('id', modal.value.id)
-    : await supabase.from('groups').insert({ ...payload, org_id: admin.org_id })
+    : await supabase.from('groups').insert({ ...payload, org_id: activeOrgId.value })
 
   saving.value = false
-  if (error) { saveError.value = error.message; return }
+  if (error) { saveError.value = error.message; toastError('Error al guardar: ' + error.message); return }
+  toastSuccess(modal.value.id ? 'Clase actualizada' : 'Clase creada')
+  invalidate('groups')
   modal.value = null
   await loadGroups()
 }

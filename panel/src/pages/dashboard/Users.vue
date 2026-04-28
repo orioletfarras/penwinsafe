@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-3xl mx-auto space-y-6">
+  <div class="space-y-6">
 
     <!-- Header -->
     <div class="flex items-center justify-between">
@@ -16,7 +16,7 @@
     </div>
 
     <!-- Invite form -->
-    <div v-if="showInvite" class="rounded-xl p-5" style="background:#fff;border:1px solid #e5e7eb">
+    <div v-if="showInvite" class="card p-5">
       <h2 class="text-[13px] font-semibold mb-4" style="color:#111827">Nuevo usuario</h2>
       <div class="flex gap-3">
         <input v-model="inviteEmail" type="email" placeholder="email@colegio.com"
@@ -51,10 +51,14 @@
     </div>
 
     <!-- Users list -->
-    <div class="rounded-xl overflow-hidden" style="background:#fff;border:1px solid #e5e7eb">
-      <!-- Loading -->
-      <div v-if="loading" class="flex items-center justify-center py-12">
-        <ArrowPathIcon class="w-5 h-5 animate-spin" style="color:#9ca3af" />
+    <div class="card overflow-hidden">
+      <!-- Skeleton -->
+      <div v-if="loading">
+        <div v-for="i in 4" :key="i" class="px-5 py-3.5 flex items-center gap-4" style="border-bottom:1px solid #f3f4f6">
+          <Skeleton height="28px" width="28px" class-name="rounded-full flex-shrink-0" />
+          <div class="flex-1 space-y-1.5"><Skeleton height="13px" width="200px" /><Skeleton height="10px" width="80px" /></div>
+          <Skeleton height="22px" width="60px" class-name="rounded" />
+        </div>
       </div>
 
       <!-- Empty -->
@@ -131,6 +135,7 @@ import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../../lib/supabase'
 import { selectedOrgId, currentUser, isSuperAdmin } from '../../lib/orgStore'
 import { PlusIcon, ArrowPathIcon, PencilIcon, UsersIcon } from '@heroicons/vue/24/outline'
+import Skeleton from '../../components/Skeleton.vue'
 
 const loading     = ref(true)
 const users       = ref([])

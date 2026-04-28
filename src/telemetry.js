@@ -265,6 +265,10 @@ async function heartbeat() {
     return
   }
 
+  // Accumulate 30s of screen time for today
+  const today = new Date().toISOString().split('T')[0]
+  await supabase.rpc('increment_screen_time', { p_device_id: deviceId, p_date: today, p_seconds: 30 })
+
   // Refresh filter config every heartbeat so changes in panel apply within 30s
   await fetchFilterConfig()
 }
