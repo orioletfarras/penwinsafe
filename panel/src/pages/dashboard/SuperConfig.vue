@@ -335,6 +335,204 @@
       </p>
     </div>
 
+    <!-- Cloudflare DNS Gateway -->
+    <div class="card overflow-hidden">
+
+      <div class="flex items-center gap-3 px-6 py-4" style="border-bottom:1px solid #f3f4f6">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:#fff7ed">
+          <CloudIcon class="w-4 h-4" style="color:#f97316" />
+        </div>
+        <div class="flex-1">
+          <h2 class="text-[14px] font-semibold" style="color:#111827">DNS Escolar (Cloudflare Gateway)</h2>
+          <p class="text-[12px]" style="color:#6b7280">Tres zonas de filtrado DNS para el centro</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span v-if="cfCfg.zones_created"
+            class="text-[11px] font-medium px-2 py-1 rounded"
+            style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0">Activo</span>
+          <span v-else
+            class="text-[11px] font-medium px-2 py-1 rounded"
+            style="background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb">Sin configurar</span>
+          <button @click="cfOpen = !cfOpen"
+            class="text-[11px] px-2 py-1 rounded transition-colors"
+            style="color:#6b7280;border:1px solid #e5e7eb"
+            @mouseenter="e => e.currentTarget.style.background='#f9fafb'"
+            @mouseleave="e => e.currentTarget.style.background='transparent'">
+            {{ cfOpen ? 'Cerrar' : 'Configurar' }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="cfOpen" class="px-6 py-5 space-y-5">
+
+        <!-- Credentials -->
+        <div class="space-y-3">
+          <p class="text-[12px] font-medium" style="color:#374151">Credenciales Cloudflare</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-medium mb-1" style="color:#6b7280">Account ID</label>
+              <input v-model="cfForm.account_id" type="text" placeholder="a1b2c3d4..."
+                class="w-full px-2.5 py-1.5 rounded-lg text-[12px] font-mono outline-none transition-all"
+                style="border:1px solid #d1d5db;color:#111827"
+                @focus="e => e.target.style.borderColor='#f97316'"
+                @blur="e => e.target.style.borderColor='#d1d5db'" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-medium mb-1" style="color:#6b7280">API Token <span style="color:#9ca3af">(Gateway:Edit)</span></label>
+              <input v-model="cfForm.api_token" type="password" placeholder="••••••••••••••"
+                class="w-full px-2.5 py-1.5 rounded-lg text-[12px] outline-none transition-all"
+                style="border:1px solid #d1d5db;color:#111827"
+                @focus="e => e.target.style.borderColor='#f97316'"
+                @blur="e => e.target.style.borderColor='#d1d5db'" />
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button @click="cfVerify" :disabled="cfVerifying || !cfForm.account_id || !cfForm.api_token"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-white transition-all"
+              :style="(cfVerifying || !cfForm.account_id || !cfForm.api_token) ? 'background:#9ca3af;cursor:not-allowed' : 'background:#f97316'">
+              <ArrowPathIcon class="w-3 h-3" :class="cfVerifying ? 'animate-spin' : ''" />
+              {{ cfVerifying ? 'Verificando...' : cfCfg.last_check_ok ? 'Reverificar' : 'Verificar cuenta' }}
+            </button>
+            <button v-if="cfCfg.last_check_ok && !cfCategories.length" @click="cfLoadCats" :disabled="cfLoadingCats"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-white transition-all"
+              :style="cfLoadingCats ? 'background:#9ca3af;cursor:not-allowed' : 'background:#f97316'">
+              <ArrowPathIcon class="w-3 h-3" :class="cfLoadingCats ? 'animate-spin' : ''" />
+              {{ cfLoadingCats ? 'Cargando...' : 'Cargar categorías' }}
+            </button>
+            <span v-if="cfCfg.last_check_ok" class="text-[11px]" style="color:#16a34a">✓ Cuenta verificada</span>
+            <span v-if="cfCredError" class="text-[11px]" style="color:#dc2626">{{ cfCredError }}</span>
+          </div>
+        </div>
+
+        <!-- Zone config (only when categories loaded) -->
+        <div v-if="cfCategories.length" class="space-y-4">
+          <p class="text-[12px] font-medium" style="color:#374151">
+            Configuración de zonas
+            <span class="ml-2 text-[11px] font-normal" style="color:#9ca3af">{{ cfCategories.length }} categorías disponibles</span>
+          </p>
+
+          <div v-for="zone in cfZones" :key="zone.key" class="rounded-xl overflow-hidden" :style="`border:1px solid ${zone.border}`">
+            <!-- Zone header -->
+            <div class="flex items-center gap-2.5 px-4 py-3" :style="`background:${zone.bg}`">
+              <component :is="zone.icon" class="w-4 h-4 flex-shrink-0" :style="`color:${zone.color}`" />
+              <input v-model="cfZoneNames[zone.key]" type="text"
+                class="flex-1 bg-transparent text-[13px] font-semibold outline-none"
+                :style="`color:${zone.color}`" />
+              <span class="text-[10px]" :style="`color:${zone.color}`">
+                {{ cfSelCats[zone.key].length }} cats · {{ cfDomains[zone.key].filter(Boolean).length }} dominios
+              </span>
+              <button @click="cfActiveZone = cfActiveZone === zone.key ? null : zone.key"
+                class="text-[10px] px-2 py-0.5 rounded transition-colors"
+                :style="`color:${zone.color};border:1px solid ${zone.border}`"
+                @mouseenter="e => e.currentTarget.style.opacity='0.7'"
+                @mouseleave="e => e.currentTarget.style.opacity='1'">
+                {{ cfActiveZone === zone.key ? 'Cerrar' : 'Editar' }}
+              </button>
+            </div>
+
+            <!-- Zone editor -->
+            <div v-if="cfActiveZone === zone.key" class="px-4 py-4 space-y-4" style="background:#fff">
+              <!-- Tab nav -->
+              <div class="flex gap-1">
+                <button v-for="tab in ['Seguridad', 'Contenido', 'Dominios']" :key="tab"
+                  @click="cfZoneTab[zone.key] = tab"
+                  class="px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all"
+                  :style="cfZoneTab[zone.key] === tab ? `background:${zone.color};color:#fff` : 'background:#f3f4f6;color:#6b7280'">
+                  {{ tab }}
+                  <span v-if="tab !== 'Dominios'" class="ml-1 text-[10px] font-bold opacity-75">
+                    {{ cfSelCats[zone.key].filter(id => cfGroupCats(tab === 'Seguridad' ? 'security' : 'content').map(c=>c.id).includes(id)).length }}/{{ cfGroupCats(tab === 'Seguridad' ? 'security' : 'content').length }}
+                  </span>
+                </button>
+                <div class="flex-1"></div>
+                <button @click="cfSelectAll(zone.key, cfZoneTab[zone.key])"
+                  class="text-[10px] px-2 py-1 rounded" style="color:#9ca3af"
+                  @mouseenter="e => e.currentTarget.style.color='#374151'"
+                  @mouseleave="e => e.currentTarget.style.color='#9ca3af'">
+                  Todo
+                </button>
+                <button @click="cfClearAll(zone.key, cfZoneTab[zone.key])"
+                  class="text-[10px] px-2 py-1 rounded" style="color:#9ca3af"
+                  @mouseenter="e => e.currentTarget.style.color='#374151'"
+                  @mouseleave="e => e.currentTarget.style.color='#9ca3af'">
+                  Ninguno
+                </button>
+              </div>
+
+              <!-- Categories grid -->
+              <div v-if="cfZoneTab[zone.key] !== 'Dominios'" class="grid grid-cols-3 gap-1.5">
+                <label v-for="cat in cfGroupCats(cfZoneTab[zone.key] === 'Seguridad' ? 'security' : 'content')" :key="cat.id"
+                  class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all text-[11px]"
+                  :style="cfSelCats[zone.key].includes(cat.id)
+                    ? `background:${zone.color}14;border:1px solid ${zone.color}44;color:#111827`
+                    : 'background:#f9fafb;border:1px solid transparent;color:#6b7280'"
+                  @mouseenter="e => { if(!cfSelCats[zone.key].includes(cat.id)) e.currentTarget.style.background='#f3f4f6' }"
+                  @mouseleave="e => { if(!cfSelCats[zone.key].includes(cat.id)) e.currentTarget.style.background='#f9fafb' }">
+                  <input type="checkbox" :checked="cfSelCats[zone.key].includes(cat.id)"
+                    @change="cfToggleCat(zone.key, cat.id)"
+                    class="rounded flex-shrink-0" :style="`accent-color:${zone.color}`" />
+                  {{ cat.name }}
+                </label>
+              </div>
+
+              <!-- Custom domains -->
+              <div v-else class="space-y-2">
+                <p class="text-[11px]" style="color:#9ca3af">Un dominio por línea. Se bloquearán además de las categorías.</p>
+                <textarea v-model="cfDomainInputs[zone.key]" @blur="cfParseDomains(zone.key)"
+                  rows="4" placeholder="ejemplo.com&#10;*.redesocial.com"
+                  class="w-full px-3 py-2 rounded-lg text-[12px] font-mono outline-none resize-none transition-all"
+                  style="border:1px solid #d1d5db;color:#374151"
+                  @focus="e => e.target.style.borderColor=zone.color"
+                  @blur2="e => e.target.style.borderColor='#d1d5db'"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- DoH URLs when active -->
+          <div v-if="cfCfg.zones_created" class="rounded-xl p-4 space-y-2.5" style="background:#f9fafb;border:1px solid #e5e7eb">
+            <p class="text-[11px] font-semibold mb-3" style="color:#374151">URLs DNS-over-HTTPS activas</p>
+            <div v-for="zone in cfZones" :key="zone.key" class="flex items-center gap-2">
+              <component :is="zone.icon" class="w-3.5 h-3.5 flex-shrink-0" :style="`color:${zone.color}`" />
+              <span class="text-[11px] w-24 flex-shrink-0 font-medium" style="color:#374151">{{ cfZoneNames[zone.key] }}</span>
+              <code v-if="cfCfg[`zone_${zone.key}_doh`]" class="flex-1 text-[10px] truncate" style="color:#6b7280">
+                https://{{ cfCfg[`zone_${zone.key}_doh`] }}.cloudflare-gateway.com/dns-query
+              </code>
+              <button v-if="cfCfg[`zone_${zone.key}_doh`]" @click="cfCopyDoh(zone.key)"
+                class="text-[10px] px-2 py-0.5 rounded" style="color:#9ca3af;border:1px solid #e5e7eb"
+                @mouseenter="e => e.currentTarget.style.color='#374151'"
+                @mouseleave="e => e.currentTarget.style.color='#9ca3af'">
+                Copiar
+              </button>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-3">
+            <button @click="cfCreateZones" :disabled="cfCreating"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium text-white transition-all"
+              :style="cfCreating ? 'background:#9ca3af;cursor:not-allowed' : 'background:#f97316'">
+              <ArrowPathIcon v-if="cfCreating" class="w-3.5 h-3.5 animate-spin" />
+              <ShieldCheckIcon v-else class="w-3.5 h-3.5" />
+              {{ cfCreating ? 'Creando zonas...' : cfCfg.zones_created ? 'Actualizar zonas' : 'Crear zonas de protección' }}
+            </button>
+            <button v-if="cfCfg.zones_created" @click="cfDeleteZones" :disabled="cfDeleting"
+              class="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium transition-all"
+              style="border:1px solid #fecaca;color:#dc2626;background:#fef2f2"
+              @mouseenter="e => e.currentTarget.style.background='#fee2e2'"
+              @mouseleave="e => e.currentTarget.style.background='#fef2f2'">
+              <TrashIcon class="w-3.5 h-3.5" />
+              Eliminar
+            </button>
+          </div>
+
+          <div v-if="cfResult" class="rounded-lg p-3"
+            :style="cfResult.ok ? 'background:#f0fdf4;border:1px solid #bbf7d0' : 'background:#fef2f2;border:1px solid #fecaca'">
+            <p class="text-[12px]" :style="cfResult.ok ? 'color:#15803d' : 'color:#991b1b'">{{ cfResult.msg }}</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -345,7 +543,9 @@ import { supabase } from '../../lib/supabase'
 import { selectedOrgId, allOrgs, switchOrg, loadUserContext, orgSwitchKey } from '../../lib/orgStore'
 import {
   WifiIcon, ShieldCheckIcon, ArrowPathIcon, CheckCircleIcon,
-  ExclamationCircleIcon, PlusCircleIcon, ArrowRightIcon
+  ExclamationCircleIcon, PlusCircleIcon, ArrowRightIcon,
+  CloudIcon, ShieldExclamationIcon, UserGroupIcon, WrenchScrewdriverIcon,
+  TrashIcon, ClipboardDocumentIcon,
 } from '@heroicons/vue/24/outline'
 
 const route  = useRoute()
@@ -600,4 +800,178 @@ async function activateNetwork() {
 
 onMounted(loadConfig)
 watch(orgSwitchKey, () => { if (selectedOrgId.value) loadConfig() })
+
+// ── Cloudflare DNS ────────────────────────────────────────────────────────
+
+const cfOpen      = ref(false)
+const cfVerifying = ref(false)
+const cfCredError = ref('')
+const cfLoadingCats = ref(false)
+const cfCreating  = ref(false)
+const cfDeleting  = ref(false)
+const cfResult    = ref(null)
+const cfActiveZone = ref(null)
+
+const cfCfg = ref({
+  last_check_ok: null, zones_created: false,
+  zone_students_doh: '', zone_teachers_doh: '', zone_admin_doh: '',
+  available_categories: [],
+})
+const cfForm = ref({ account_id: '', api_token: '' })
+const cfCategories = ref([])
+const cfZoneNames = ref({ students: 'Alumnos', teachers: 'Profesores', admin: 'Administración' })
+const cfSelCats   = ref({ students: [], teachers: [], admin: [] })
+const cfDomains   = ref({ students: [], teachers: [], admin: [] })
+const cfDomainInputs = ref({ students: '', teachers: '', admin: '' })
+const cfZoneTab   = ref({ students: 'Seguridad', teachers: 'Seguridad', admin: 'Seguridad' })
+
+const cfZones = [
+  { key: 'students', color: '#dc2626', bg: '#fef2f200', border: '#fecaca', icon: ShieldExclamationIcon },
+  { key: 'teachers', color: '#d97706', bg: '#fffbeb00', border: '#fde68a', icon: UserGroupIcon },
+  { key: 'admin',    color: '#2563eb', bg: '#eff6ff00', border: '#bfdbfe', icon: WrenchScrewdriverIcon },
+]
+
+function cfGroupCats(cls) {
+  return cfCategories.value.filter(c => cls === 'security' ? c.class === 'security' : c.class !== 'security')
+}
+
+function cfToggleCat(key, id) {
+  const arr = cfSelCats.value[key]
+  const idx = arr.indexOf(id)
+  if (idx === -1) arr.push(id)
+  else arr.splice(idx, 1)
+}
+
+function cfSelectAll(key, tab) {
+  const cls = tab === 'Seguridad' ? 'security' : 'content'
+  const ids = cfGroupCats(cls).map(c => c.id)
+  ids.forEach(id => { if (!cfSelCats.value[key].includes(id)) cfSelCats.value[key].push(id) })
+}
+
+function cfClearAll(key, tab) {
+  const cls = tab === 'Seguridad' ? 'security' : 'content'
+  const ids = cfGroupCats(cls).map(c => c.id)
+  cfSelCats.value[key] = cfSelCats.value[key].filter(id => !ids.includes(id))
+}
+
+function cfParseDomains(key) {
+  const lines = cfDomainInputs.value[key].split('\n').map(l => l.trim()).filter(Boolean)
+  cfDomains.value[key] = [...new Set(lines)]
+}
+
+async function cfCallApi(body) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cloudflare-api`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ ...body, org_id: selectedOrgId.value }),
+    }
+  )
+  return await res.json()
+}
+
+async function cfLoadConfig() {
+  if (!selectedOrgId.value) return
+  const { data } = await supabase
+    .from('cloudflare_configs').select('*').eq('org_id', selectedOrgId.value).single()
+  if (data) {
+    cfCfg.value = data
+    cfForm.value = { account_id: data.account_id || '', api_token: '' }
+    cfZoneNames.value = {
+      students: data.zone_students_name || 'Alumnos',
+      teachers: data.zone_teachers_name || 'Profesores',
+      admin:    data.zone_admin_name    || 'Administración',
+    }
+    cfSelCats.value = {
+      students: data.categories_students || [],
+      teachers: data.categories_teachers || [],
+      admin:    data.categories_admin    || [],
+    }
+    cfDomains.value = {
+      students: data.custom_blocked_students || [],
+      teachers: data.custom_blocked_teachers || [],
+      admin:    data.custom_blocked_admin    || [],
+    }
+    cfDomainInputs.value = {
+      students: (data.custom_blocked_students || []).join('\n'),
+      teachers: (data.custom_blocked_teachers || []).join('\n'),
+      admin:    (data.custom_blocked_admin    || []).join('\n'),
+    }
+    if (data.available_categories?.length) cfCategories.value = data.available_categories
+    if (data.last_check_ok) cfOpen.value = true
+  }
+}
+
+async function cfVerify() {
+  if (!cfForm.value.account_id || !cfForm.value.api_token) return
+  cfVerifying.value = true
+  cfCredError.value = ''
+  try {
+    const result = await cfCallApi({ action: 'verify', account_id: cfForm.value.account_id.trim(), api_token: cfForm.value.api_token.trim() })
+    if (result.ok) {
+      await supabase.from('cloudflare_configs').upsert({
+        org_id: selectedOrgId.value, account_id: cfForm.value.account_id.trim(), api_token: cfForm.value.api_token.trim(),
+        last_check_ok: true, last_check_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      })
+      cfCfg.value.last_check_ok = true
+      if (!cfCategories.value.length) await cfLoadCats()
+    } else {
+      cfCredError.value = result.error || 'Error desconocido'
+    }
+  } catch (e) { cfCredError.value = e.message }
+  finally { cfVerifying.value = false }
+}
+
+async function cfLoadCats() {
+  cfLoadingCats.value = true
+  try {
+    const result = await cfCallApi({ action: 'get_categories' })
+    if (result.ok) cfCategories.value = result.categories
+  } catch (_) {}
+  finally { cfLoadingCats.value = false }
+}
+
+async function cfCreateZones() {
+  cfZones.forEach(z => cfParseDomains(z.key))
+  cfCreating.value = true
+  cfResult.value = null
+  try {
+    const result = await cfCallApi({
+      action: 'create_zones',
+      zone_names: { students: cfZoneNames.value.students, teachers: cfZoneNames.value.teachers, admin: cfZoneNames.value.admin },
+      categories_students: cfSelCats.value.students,
+      categories_teachers: cfSelCats.value.teachers,
+      categories_admin:    cfSelCats.value.admin,
+      custom_blocked_students: cfDomains.value.students,
+      custom_blocked_teachers: cfDomains.value.teachers,
+      custom_blocked_admin:    cfDomains.value.admin,
+    })
+    cfResult.value = result.ok
+      ? { ok: true, msg: 'Zonas creadas correctamente en Cloudflare Gateway' }
+      : { ok: false, msg: result.error || 'Error al crear las zonas' }
+    if (result.ok) await cfLoadConfig()
+  } catch (e) { cfResult.value = { ok: false, msg: e.message } }
+  finally { cfCreating.value = false }
+}
+
+async function cfDeleteZones() {
+  if (!confirm('¿Eliminar las tres zonas de Cloudflare Gateway?')) return
+  cfDeleting.value = true
+  try {
+    const result = await cfCallApi({ action: 'delete_zones' })
+    cfResult.value = result.ok ? { ok: true, msg: 'Zonas eliminadas' } : { ok: false, msg: result.error }
+    if (result.ok) await cfLoadConfig()
+  } catch (e) { cfResult.value = { ok: false, msg: e.message } }
+  finally { cfDeleting.value = false }
+}
+
+function cfCopyDoh(key) {
+  const sub = cfCfg.value[`zone_${key}_doh`]
+  if (sub) navigator.clipboard.writeText(`https://${sub}.cloudflare-gateway.com/dns-query`)
+}
+
+onMounted(() => { loadConfig(); cfLoadConfig() })
+watch(orgSwitchKey, () => { if (selectedOrgId.value) { loadConfig(); cfLoadConfig() } })
 </script>

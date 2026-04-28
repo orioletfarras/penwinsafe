@@ -473,6 +473,18 @@ const searchResults = ref([])
 
 // Sidebar collapse
 const sidebarCollapsed = ref(localStorage.getItem('pws_sidebar_collapsed') === 'true')
+
+// Show DNS Escolar nav item when cloudflare zones are active for this org
+const cfActive = ref(false)
+async function checkCfActive() {
+  if (!selectedOrgId.value) return
+  const { data } = await supabase
+    .from('cloudflare_configs')
+    .select('zones_created')
+    .eq('org_id', selectedOrgId.value)
+    .single()
+  cfActive.value = data?.zones_created === true
+}
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
   localStorage.setItem('pws_sidebar_collapsed', sidebarCollapsed.value)
@@ -533,10 +545,8 @@ const mgmtNav = computed(() => [
   { to: '/dashboard/reports',       label: 'Informes',          icon: DocumentTextIcon },
   { to: '/dashboard/audit',         label: 'Registro',          icon: ClipboardDocumentListIcon },
   { to: '/dashboard/settings',      label: 'Configuración',     icon: Cog6ToothIcon },
-  ...(isSuperAdmin.value ? [
-    { to: '/dashboard/superconfig', label: 'SuperConfig',    icon: WrenchScrewdriverIcon },
-    { to: '/dashboard/cloudflare',  label: 'DNS Cloudflare', icon: CloudIcon },
-  ] : []),
+  ...(isSuperAdmin.value ? [{ to: '/dashboard/superconfig', label: 'SuperConfig', icon: WrenchScrewdriverIcon }] : []),
+  ...(cfActive.value ? [{ to: '/dashboard/cloudflare', label: 'DNS Escolar', icon: CloudIcon }] : []),
 ])
 
 const pageMap = {
@@ -551,7 +561,7 @@ const pageMap = {
   '/dashboard/users':         { title: 'Usuarios',          desc: 'Administradores con acceso al panel' },
   '/dashboard/settings':    { title: 'Configuración',  desc: 'Datos del centro y preferencias de la cuenta' },
   '/dashboard/superconfig': { title: 'SuperConfig',    desc: 'Gestión global de centros y configuración avanzada' },
-  '/dashboard/cloudflare':  { title: 'DNS Cloudflare', desc: 'Filtrado DNS Gateway con tres zonas de protección' },
+  '/dashboard/cloudflare':  { title: 'DNS Escolar', desc: 'Filtrado DNS con tres zonas de protección por perfil' },
 }
 const currentPageTitle = computed(() => pageMap[route.path]?.title || 'Panel')
 const currentPageDesc  = computed(() => pageMap[route.path]?.desc  || '')
@@ -595,6 +605,7 @@ onMounted(async () => {
   userEmail.value = user?.email || ''
   orgName.value = isSuperAdmin.value ? (selectedOrgName() || 'Penwin') : (admin?.organizations?.name || '')
   await loadAlertCount()
+  await checkCfActive()
 
   // Show onboarding for new orgs (no devices, not dismissed)
   if (!localStorage.getItem('pws_onboarding_done')) {
@@ -643,6 +654,7 @@ async function handleSwitchOrg(orgId) {
   orgDropdownOpen.value = false
   orgSearch.value = ''
   loadAlertCount()
+  checkCfActive()
 }
 
 function handleCreateOrg() {
