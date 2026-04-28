@@ -118,7 +118,7 @@ async function getCallerRole(authHeader: string | null, orgId: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) throw new Error('No autorizado')
   const { data: admin } = await supabase
-    .from('admin_users').select('role, org_id').eq('user_id', user.id).single()
+    .from('admin_users').select('role, org_id').eq('id', user.id).single()
   if (!admin) throw new Error('No autorizado')
   if (admin.role !== 'superadmin' && admin.org_id !== orgId) throw new Error('Sin acceso a este centro')
   return admin.role as 'superadmin' | 'admin' | 'viewer'
@@ -130,7 +130,7 @@ async function requireSuperAdmin(authHeader: string | null) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) throw new Error('No autorizado')
   const { data: admin } = await supabase
-    .from('admin_users').select('role').eq('user_id', user.id).single()
+    .from('admin_users').select('role').eq('id', user.id).single()
   if (admin?.role !== 'superadmin') throw new Error('Solo superadmin')
 }
 

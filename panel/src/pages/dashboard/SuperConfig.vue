@@ -926,11 +926,19 @@ async function cfVerify() {
 
 async function cfLoadCats() {
   cfLoadingCats.value = true
+  cfCredError.value = ''
   try {
     const result = await cfCallApi({ action: 'get_categories' })
-    if (result.ok) cfCategories.value = result.categories
-  } catch (_) {}
-  finally { cfLoadingCats.value = false }
+    if (result.ok) {
+      cfCategories.value = result.categories
+    } else {
+      cfCredError.value = result.error || 'Error al cargar categorías'
+    }
+  } catch (e) {
+    cfCredError.value = e.message
+  } finally {
+    cfLoadingCats.value = false
+  }
 }
 
 async function cfCreateZones() {
