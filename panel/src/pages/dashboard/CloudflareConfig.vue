@@ -360,49 +360,46 @@
       <!-- ── FILTRADO ─────────────────────────────────────────────────── -->
       <template v-else-if="mainTab === 'filter'">
 
-        <div v-if="!categories.length" class="rounded-2xl bg-white border border-gray-100 p-8 text-center">
+        <div v-if="!categories.length" class="card p-8 text-center">
           <ArrowPathIcon class="w-5 h-5 mx-auto animate-spin text-gray-300 mb-2" />
           <p class="text-xs text-gray-400">Cargando configuración…</p>
         </div>
 
         <template v-else>
 
-          <!-- Toggle grid (hidden when advanced config is open) -->
-          <div v-if="!filterExpanded" class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
-            <!-- Header -->
-            <div class="grid grid-cols-4 px-5 py-3 bg-gray-50 border-b border-gray-100">
-              <div></div>
+          <!-- Category grid -->
+          <div class="card overflow-hidden">
+            <div class="grid px-5 py-2.5 bg-gray-50 border-b border-gray-100"
+              style="grid-template-columns:1fr repeat(3,60px)">
+              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Categoría</span>
               <div v-for="zone in zones" :key="zone.key" class="text-center">
-                <component :is="zone.icon" class="w-4 h-4 mx-auto mb-0.5" :style="`color:${zone.color}`" />
-                <p class="text-[11px] font-bold" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wide" :style="`color:${zone.color}`">
+                  {{ zoneNames[zone.key] }}
+                </p>
               </div>
             </div>
-            <!-- Rows -->
             <div v-for="(group, gi) in FILTER_GROUPS" :key="group.key"
-              class="grid grid-cols-4 px-5 py-3.5 items-center"
-              :class="gi < FILTER_GROUPS.length - 1 ? 'border-b border-gray-50' : ''">
+              class="grid px-5 py-3.5 items-center"
+              :class="gi < FILTER_GROUPS.length - 1 ? 'border-b border-gray-50' : ''"
+              style="grid-template-columns:1fr repeat(3,60px)">
               <div class="flex items-center gap-2.5">
-                <span class="text-xl leading-none">{{ group.emoji }}</span>
-                <div>
-                  <p class="text-xs font-bold text-gray-800">{{ group.name }}</p>
-                  <p class="text-[10px] text-gray-400 leading-tight mt-0.5">{{ group.desc }}</p>
-                </div>
+                <span class="text-base leading-none select-none">{{ group.emoji }}</span>
+                <span class="text-[13px] font-semibold" style="color:#111827">{{ group.name }}</span>
+                <span v-if="group.locked"
+                  class="text-[10px] px-1.5 py-px rounded"
+                  style="background:#f3f4f6;color:#9ca3af">siempre</span>
               </div>
               <div v-for="zone in zones" :key="zone.key" class="flex justify-center">
-                <!-- Locked -->
                 <div v-if="group.locked"
-                  class="relative w-10 h-5 rounded-full bg-gray-200 flex items-center cursor-not-allowed"
-                  title="Siempre activo">
-                  <div class="absolute right-0.5 w-4 h-4 rounded-full bg-white/60 shadow-sm"></div>
+                  class="relative w-9 h-[18px] rounded-full flex items-center cursor-not-allowed"
+                  :style="`background:${zone.color}35`">
+                  <div class="absolute right-0.5 w-3.5 h-3.5 rounded-full bg-white/80 shadow-sm"></div>
                 </div>
-                <!-- Toggle -->
                 <button v-else
                   @click="filterState[zone.key][group.key] = !filterState[zone.key][group.key]"
-                  class="relative w-10 h-5 rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-                  :style="filterState[zone.key][group.key]
-                    ? `background:${zone.color};`
-                    : 'background:#e5e7eb;'">
-                  <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200"
+                  class="relative w-9 h-[18px] rounded-full transition-all duration-200 focus:outline-none"
+                  :style="filterState[zone.key][group.key] ? `background:${zone.color}` : 'background:#e5e7eb'">
+                  <span class="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all duration-200"
                     :class="filterState[zone.key][group.key] ? 'right-0.5' : 'left-0.5'"></span>
                 </button>
               </div>
@@ -410,31 +407,28 @@
           </div>
 
           <!-- Advanced config (expandable) -->
-          <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+          <div class="card overflow-hidden">
             <button @click="filterExpanded = !filterExpanded"
-              class="w-full flex items-center justify-between px-5 py-4 text-xs font-bold hover:bg-gray-50 transition-colors"
+              class="w-full flex items-center justify-between px-5 py-4 text-[12px] font-semibold hover:bg-gray-50 transition-colors"
               :class="filterExpanded ? 'text-blue-600' : 'text-gray-500'">
               <div class="flex items-center gap-2">
-                <WrenchScrewdriverIcon class="w-4 h-4" />
-                {{ filterExpanded ? 'Modo avanzado activo — oculta los toggles básicos' : 'Configuración avanzada de categorías' }}
+                <WrenchScrewdriverIcon class="w-3.5 h-3.5" />
+                Configuración avanzada
               </div>
               <ChevronDownIcon class="w-4 h-4 transition-transform duration-200" :class="filterExpanded ? 'rotate-180' : ''" />
             </button>
-
             <div v-if="filterExpanded" class="border-t border-gray-100">
               <div v-for="(zone, zi) in zones" :key="zone.key"
                 class="px-5 py-5"
                 :class="zi < zones.length - 1 ? 'border-b border-gray-50' : ''">
-                <div class="flex items-center gap-2 mb-4">
-                  <div class="w-6 h-6 rounded-lg flex items-center justify-center" :style="`background:${zone.color}15`">
-                    <component :is="zone.icon" class="w-3.5 h-3.5" :style="`color:${zone.color}`" />
-                  </div>
-                  <p class="text-sm font-bold" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="w-2 h-2 rounded-full flex-shrink-0" :style="`background:${zone.color}`"></span>
+                  <p class="text-[13px] font-semibold" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
                 </div>
-                <div class="flex gap-1.5 mb-4">
+                <div class="flex gap-1 mb-3">
                   <button v-for="tab in advTabs" :key="tab.key"
                     @click="activeTab[zone.key] = tab.key"
-                    class="px-3 py-1 text-[11px] font-bold rounded-lg transition-all"
+                    class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all"
                     :style="activeTab[zone.key] === tab.key
                       ? `background:${zone.color};color:#fff`
                       : 'background:#f3f4f6;color:#9ca3af'">
@@ -469,23 +463,22 @@
 
           <!-- Result banner -->
           <div v-if="result"
-            class="flex items-center gap-3 p-4 rounded-2xl"
-            :class="result.ok ? 'bg-emerald-50 ring-1 ring-emerald-200' : 'bg-red-50 ring-1 ring-red-200'">
-            <CheckCircleIcon v-if="result.ok" class="w-5 h-5 text-emerald-500 flex-shrink-0" />
-            <ExclamationCircleIcon v-else class="w-5 h-5 text-red-400 flex-shrink-0" />
-            <p class="text-xs font-semibold" :class="result.ok ? 'text-emerald-700' : 'text-red-600'">{{ result.msg }}</p>
+            class="flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] font-semibold"
+            :class="result.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'">
+            <CheckCircleIcon v-if="result.ok" class="w-4 h-4 flex-shrink-0" />
+            <ExclamationCircleIcon v-else class="w-4 h-4 flex-shrink-0" />
+            {{ result.msg }}
           </div>
 
           <!-- Actions -->
           <div class="flex items-center gap-3">
             <button @click="applyFromToggles" :disabled="applying || saving"
-              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-150 shadow-sm"
-              :class="(applying || saving) ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'">
-              <ArrowPathIcon v-if="applying" class="w-4 h-4 animate-spin" />
-              <ShieldCheckIcon v-else class="w-4 h-4" />
+              class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all disabled:opacity-40"
+              style="background:#006fff">
+              <ArrowPathIcon v-if="applying" class="w-3 h-3 animate-spin" />
               {{ applying ? 'Aplicando…' : 'Guardar y aplicar' }}
             </button>
-            <p class="text-xs text-gray-400">Los cambios se aplican inmediatamente en el filtro DNS</p>
+            <p class="text-[11px]" style="color:#9ca3af">Los cambios se aplican inmediatamente en el filtro DNS</p>
           </div>
 
         </template>
