@@ -384,7 +384,7 @@
             <div v-for="(cat, ci) in groupCats('security')" :key="cat.id"
               class="grid px-5 py-3 items-center border-b border-gray-50"
               style="grid-template-columns:1fr repeat(3,90px)">
-              <span class="text-[12px] font-medium" style="color:#374151">{{ cat.name }}</span>
+              <span class="text-[12px] font-medium" style="color:#374151">{{ catName(cat.name) }}</span>
               <div v-for="zone in zones" :key="zone.key" class="flex justify-center">
                 <button @click="toggleCat(zone.key, cat.id)"
                   class="relative w-9 h-[18px] rounded-full transition-all duration-200 focus:outline-none"
@@ -402,7 +402,7 @@
               class="grid px-5 py-3 items-center"
               :class="ci < groupCats('content').length - 1 ? 'border-b border-gray-50' : ''"
               style="grid-template-columns:1fr repeat(3,90px)">
-              <span class="text-[12px] font-medium" style="color:#374151">{{ cat.name }}</span>
+              <span class="text-[12px] font-medium" style="color:#374151">{{ catName(cat.name) }}</span>
               <div v-for="zone in zones" :key="zone.key" class="flex justify-center">
                 <button @click="toggleCat(zone.key, cat.id)"
                   class="relative w-9 h-[18px] rounded-full transition-all duration-200 focus:outline-none"
@@ -1100,6 +1100,70 @@ const maxAppTotal = computed(() =>
 )
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+const CAT_ES = {
+  // Security
+  'Malware':                      'Malware',
+  'Phishing':                     'Phishing',
+  'Botnet':                       'Botnets',
+  'Command & Control':            'Mando y control',
+  'Spyware':                      'Spyware',
+  'Adware & Tracking':            'Adware y rastreo',
+  'Cryptomining':                 'Criptominería',
+  'DNS Rebinding':                'DNS Rebinding',
+  'Newly Registered Domains':     'Dominios recién registrados',
+  'Parked Domains':               'Dominios aparcados',
+  'DoH & DoT Bypass':             'Bypass DoH / DoT',
+  'Encrypted SNI':                'SNI cifrado',
+  'Login Screens':                'Pantallas de login',
+  'Mixed Content':                'Contenido mixto',
+  'Spam':                         'Spam',
+  'Malicious':                    'Malicioso',
+  // Content
+  'Adult Themes':                 'Contenido adulto',
+  'Gambling':                     'Apuestas',
+  'Drugs':                        'Drogas',
+  'Weapons':                      'Armas',
+  'Violence':                     'Violencia',
+  'Hate & Racism':                'Odio y racismo',
+  'Self Harm':                    'Autolesiones',
+  'Terrorism':                    'Terrorismo',
+  'Child Abuse':                  'Abuso infantil',
+  'Anonymizer':                   'Anonimizadores',
+  'P2P & File Sharing':           'P2P y descarga directa',
+  'Streaming':                    'Streaming',
+  'Social Networks':              'Redes sociales',
+  'Instant Messaging':            'Mensajería instantánea',
+  'Gaming':                       'Videojuegos',
+  'Dating & Personals':           'Citas y contactos',
+  'Religion':                     'Religión',
+  'Abortion':                     'Aborto',
+  'Alcohol & Tobacco':            'Alcohol y tabaco',
+  'File Sharing':                 'Intercambio de archivos',
+  'Questionable Activities':      'Actividades cuestionables',
+  'Nudity':                       'Desnudez',
+  'Pornography':                  'Pornografía',
+  'Sexuality':                    'Sexualidad',
+  'Swimsuits & Intimate Apparel': 'Ropa íntima',
+  'Traditional & Cultural':       'Tradicional y cultural',
+  'News':                         'Noticias',
+  'Entertainment':                'Entretenimiento',
+  'Sports':                       'Deportes',
+  'Shopping':                     'Compras',
+  'Travel':                       'Viajes',
+  'Health & Medicine':            'Salud y medicina',
+  'Education':                    'Educación',
+  'Finance':                      'Finanzas',
+  'Government':                   'Gobierno',
+  'Business':                     'Negocios',
+  'Technology':                   'Tecnología',
+  'Email':                        'Correo electrónico',
+  'Search Engines':               'Buscadores',
+  'Translators':                  'Traductores',
+  'Proxy':                        'Proxy',
+  'VPN':                          'VPN',
+}
+function catName(name) { return CAT_ES[name] || name }
+
 function groupCats(cls) {
   return categories.value.filter(c => cls === 'security'
     ? (c.class === 'free' || c.class === 'blocked')
