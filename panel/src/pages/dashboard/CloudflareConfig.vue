@@ -370,9 +370,9 @@
           <!-- Category grid -->
           <div class="card overflow-hidden">
             <div class="grid px-5 py-2.5 bg-gray-50 border-b border-gray-100"
-              style="grid-template-columns:1fr repeat(3,60px)">
+              style="grid-template-columns:1fr repeat(3,90px)">
               <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Categoría</span>
-              <div v-for="zone in zones" :key="zone.key" class="text-center">
+              <div v-for="zone in zones" :key="zone.key" class="text-center px-2">
                 <p class="text-[10px] font-bold uppercase tracking-wide" :style="`color:${zone.color}`">
                   {{ zoneNames[zone.key] }}
                 </p>
@@ -381,7 +381,7 @@
             <div v-for="(group, gi) in FILTER_GROUPS" :key="group.key"
               class="grid px-5 py-3.5 items-center"
               :class="gi < FILTER_GROUPS.length - 1 ? 'border-b border-gray-50' : ''"
-              style="grid-template-columns:1fr repeat(3,60px)">
+              style="grid-template-columns:1fr repeat(3,90px)">
               <div class="flex items-center gap-2.5">
                 <span class="text-base leading-none select-none">{{ group.emoji }}</span>
                 <span class="text-[13px] font-semibold" style="color:#111827">{{ group.name }}</span>
