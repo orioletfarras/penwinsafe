@@ -367,96 +367,46 @@
 
         <template v-else>
 
-          <!-- Category grid -->
+          <!-- Per-zone advanced categories -->
           <div class="card overflow-hidden">
-            <div class="grid px-5 py-2.5 bg-gray-50 border-b border-gray-100"
-              style="grid-template-columns:1fr repeat(3,90px)">
-              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Categoría</span>
-              <div v-for="zone in zones" :key="zone.key" class="text-center px-2">
-                <p class="text-[10px] font-bold uppercase tracking-wide" :style="`color:${zone.color}`">
-                  {{ zoneNames[zone.key] }}
-                </p>
+            <div v-for="(zone, zi) in zones" :key="zone.key"
+              class="px-5 py-5"
+              :class="zi < zones.length - 1 ? 'border-b border-gray-100' : ''">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="w-2 h-2 rounded-full flex-shrink-0" :style="`background:${zone.color}`"></span>
+                <p class="text-[13px] font-semibold" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
               </div>
-            </div>
-            <div v-for="(group, gi) in FILTER_GROUPS" :key="group.key"
-              class="grid px-5 py-3.5 items-center"
-              :class="gi < FILTER_GROUPS.length - 1 ? 'border-b border-gray-50' : ''"
-              style="grid-template-columns:1fr repeat(3,90px)">
-              <div class="flex items-center gap-2.5">
-                <span class="text-base leading-none select-none">{{ group.emoji }}</span>
-                <span class="text-[13px] font-semibold" style="color:#111827">{{ group.name }}</span>
-                <span v-if="group.locked"
-                  class="text-[10px] px-1.5 py-px rounded"
-                  style="background:#f3f4f6;color:#9ca3af">siempre</span>
-              </div>
-              <div v-for="zone in zones" :key="zone.key" class="flex justify-center">
-                <div v-if="group.locked"
-                  class="relative w-9 h-[18px] rounded-full flex items-center cursor-not-allowed"
-                  :style="`background:${zone.color}35`">
-                  <div class="absolute right-0.5 w-3.5 h-3.5 rounded-full bg-white/80 shadow-sm"></div>
-                </div>
-                <button v-else
-                  @click="filterState[zone.key][group.key] = !filterState[zone.key][group.key]"
-                  class="relative w-9 h-[18px] rounded-full transition-all duration-200 focus:outline-none"
-                  :style="filterState[zone.key][group.key] ? `background:${zone.color}` : 'background:#e5e7eb'">
-                  <span class="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all duration-200"
-                    :class="filterState[zone.key][group.key] ? 'right-0.5' : 'left-0.5'"></span>
+              <div class="flex gap-1 mb-3">
+                <button v-for="tab in advTabs" :key="tab.key"
+                  @click="activeTab[zone.key] = tab.key"
+                  class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all"
+                  :style="activeTab[zone.key] === tab.key
+                    ? `background:${zone.color};color:#fff`
+                    : 'background:#f3f4f6;color:#9ca3af'">
+                  {{ tab.label }}
                 </button>
               </div>
-            </div>
-          </div>
-
-          <!-- Advanced config (expandable) -->
-          <div class="card overflow-hidden">
-            <button @click="filterExpanded = !filterExpanded"
-              class="w-full flex items-center justify-between px-5 py-4 text-[12px] font-semibold hover:bg-gray-50 transition-colors"
-              :class="filterExpanded ? 'text-blue-600' : 'text-gray-500'">
-              <div class="flex items-center gap-2">
-                <WrenchScrewdriverIcon class="w-3.5 h-3.5" />
-                Configuración avanzada
+              <div v-if="activeTab[zone.key] === 'security' || activeTab[zone.key] === 'content'" class="grid grid-cols-3 gap-1.5">
+                <label v-for="cat in groupCats(activeTab[zone.key])" :key="cat.id"
+                  class="flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer transition-all text-[11px] font-medium"
+                  :style="isCatSelected(zone.key, cat.id)
+                    ? `background:${zone.color}12;outline:1.5px solid ${zone.color}50;color:#111827`
+                    : 'background:#f9fafb;color:#9ca3af'">
+                  <input type="checkbox" :checked="isCatSelected(zone.key, cat.id)"
+                    @change="toggleCat(zone.key, cat.id)"
+                    class="rounded flex-shrink-0" :style="`accent-color:${zone.color}`" />
+                  {{ cat.name }}
+                </label>
               </div>
-              <ChevronDownIcon class="w-4 h-4 transition-transform duration-200" :class="filterExpanded ? 'rotate-180' : ''" />
-            </button>
-            <div v-if="filterExpanded" class="border-t border-gray-100">
-              <div v-for="(zone, zi) in zones" :key="zone.key"
-                class="px-5 py-5"
-                :class="zi < zones.length - 1 ? 'border-b border-gray-50' : ''">
-                <div class="flex items-center gap-2 mb-3">
-                  <span class="w-2 h-2 rounded-full flex-shrink-0" :style="`background:${zone.color}`"></span>
-                  <p class="text-[13px] font-semibold" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
-                </div>
-                <div class="flex gap-1 mb-3">
-                  <button v-for="tab in advTabs" :key="tab.key"
-                    @click="activeTab[zone.key] = tab.key"
-                    class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all"
-                    :style="activeTab[zone.key] === tab.key
-                      ? `background:${zone.color};color:#fff`
-                      : 'background:#f3f4f6;color:#9ca3af'">
-                    {{ tab.label }}
-                  </button>
-                </div>
-                <div v-if="activeTab[zone.key] === 'security' || activeTab[zone.key] === 'content'" class="grid grid-cols-3 gap-1.5">
-                  <label v-for="cat in groupCats(activeTab[zone.key])" :key="cat.id"
-                    class="flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer transition-all text-[11px] font-medium"
-                    :style="isCatSelected(zone.key, cat.id)
-                      ? `background:${zone.color}12;outline:1.5px solid ${zone.color}50;color:#111827`
-                      : 'background:#f9fafb;color:#9ca3af'">
-                    <input type="checkbox" :checked="isCatSelected(zone.key, cat.id)"
-                      @change="toggleCat(zone.key, cat.id)"
-                      class="rounded flex-shrink-0" :style="`accent-color:${zone.color}`" />
-                    {{ cat.name }}
-                  </label>
-                </div>
-                <div v-else-if="activeTab[zone.key] === 'blocked'">
-                  <textarea v-model="domainInputs[zone.key]" @blur="parseDomains(zone.key)"
-                    rows="4" placeholder="redesocial.com&#10;*.streaming.net"
-                    class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
-                </div>
-                <div v-else-if="activeTab[zone.key] === 'allowed'">
-                  <textarea v-model="whitelistInputs[zone.key]" @blur="parseWhitelist(zone.key)"
-                    rows="4" placeholder="recursoseducativos.com&#10;*.google.com"
-                    class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
-                </div>
+              <div v-else-if="activeTab[zone.key] === 'blocked'">
+                <textarea v-model="domainInputs[zone.key]" @blur="parseDomains(zone.key)"
+                  rows="4" placeholder="redesocial.com&#10;*.streaming.net"
+                  class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
+              </div>
+              <div v-else-if="activeTab[zone.key] === 'allowed'">
+                <textarea v-model="whitelistInputs[zone.key]" @blur="parseWhitelist(zone.key)"
+                  rows="4" placeholder="recursoseducativos.com&#10;*.google.com"
+                  class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
               </div>
             </div>
           </div>
