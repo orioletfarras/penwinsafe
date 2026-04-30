@@ -412,7 +412,7 @@ import {
   UserGroupIcon, ShieldExclamationIcon, WrenchScrewdriverIcon,
   ChevronDownIcon, BuildingOfficeIcon, MagnifyingGlassIcon, PlusCircleIcon,
   UsersIcon, XMarkIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon,
-  BellAlertIcon, ClockIcon, ChevronLeftIcon, BoltIcon, CloudIcon,
+  BellAlertIcon, ClockIcon, ChevronLeftIcon, BoltIcon, CloudIcon, ChartBarIcon,
 } from '@heroicons/vue/24/outline'
 
 // ── NavItem component ──────────────────────────────────────────────────────
@@ -547,6 +547,7 @@ const mgmtNav = computed(() => [
   { to: '/dashboard/settings',      label: 'Configuración',     icon: Cog6ToothIcon },
   ...(isSuperAdmin.value ? [{ to: '/dashboard/superconfig', label: 'SuperConfig', icon: WrenchScrewdriverIcon }] : []),
   ...(cfActive.value ? [{ to: '/dashboard/cloudflare', label: 'DNS Escolar', icon: CloudIcon }] : []),
+  { to: '/dashboard/traffic', label: 'Tráfico', icon: ChartBarIcon },
 ])
 
 const pageMap = {
@@ -562,6 +563,7 @@ const pageMap = {
   '/dashboard/settings':    { title: 'Configuración',  desc: 'Datos del centro y preferencias de la cuenta' },
   '/dashboard/superconfig': { title: 'SuperConfig',    desc: 'Gestión global de centros y configuración avanzada' },
   '/dashboard/cloudflare':  { title: 'DNS Escolar', desc: 'Filtrado DNS con tres zonas de protección por perfil' },
+  '/dashboard/traffic':     { title: 'Tráfico',     desc: 'Consumo real de ancho de banda por aplicación y alumno' },
 }
 const currentPageTitle = computed(() => pageMap[route.path]?.title || 'Panel')
 const currentPageDesc  = computed(() => pageMap[route.path]?.desc  || '')

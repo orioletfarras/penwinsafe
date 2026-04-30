@@ -1,223 +1,581 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-5">
 
     <!-- Header -->
-    <div class="flex items-start justify-between">
+    <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-[18px] font-semibold" style="color:#111827">DNS Escolar</h1>
-        <p class="text-[13px] mt-1" style="color:#6b7280">
-          Configura las tres zonas de filtrado DNS para <strong>{{ currentOrgName }}</strong>
-        </p>
+        <h1 class="text-lg font-bold text-gray-900 tracking-tight">DNS Escolar</h1>
+        <p class="text-xs text-gray-400 mt-0.5">Filtrado de contenido · <span class="text-gray-600 font-medium">{{ currentOrgName }}</span></p>
       </div>
-      <div class="flex items-center gap-2">
-        <span v-if="cfg.zones_created"
-          class="text-[11px] font-medium px-2.5 py-1.5 rounded-lg"
-          style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0">
-          Activo en Cloudflare
-        </span>
-        <span v-else
-          class="text-[11px] font-medium px-2.5 py-1.5 rounded-lg"
-          style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">
-          Sin aplicar
-        </span>
-      </div>
+      <span v-if="cfg.zones_created"
+        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Activo
+      </span>
+      <span v-else
+        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+        Sin configurar
+      </span>
     </div>
 
-    <!-- Not configured yet -->
-    <div v-if="!cfg.zones_created && !cfg.last_check_ok" class="card p-8 text-center space-y-3">
-      <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto" style="background:#f3f4f6">
-        <CloudIcon class="w-5 h-5" style="color:#9ca3af" />
+    <!-- Not configured -->
+    <div v-if="!cfg.zones_created && !cfg.last_check_ok"
+      class="rounded-2xl border border-dashed border-gray-200 p-12 text-center bg-gray-50 space-y-3">
+      <div class="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mx-auto">
+        <CloudIcon class="w-6 h-6 text-gray-300" />
       </div>
-      <p class="text-[13px] font-medium" style="color:#374151">DNS Escolar no configurado</p>
-      <p class="text-[12px]" style="color:#9ca3af">Un superadmin debe conectar la cuenta Cloudflare en SuperConfig</p>
+      <p class="text-sm font-semibold text-gray-700">DNS Escolar no configurado</p>
+      <p class="text-xs text-gray-400">Un superadmin debe conectar la cuenta Cloudflare en SuperConfig</p>
     </div>
 
     <template v-else>
 
-      <!-- Categories not loaded yet -->
-      <div v-if="!categories.length" class="card p-6 text-center space-y-3">
-        <ArrowPathIcon class="w-5 h-5 mx-auto animate-spin" style="color:#9ca3af" />
-        <p class="text-[12px]" style="color:#9ca3af">Cargando configuración…</p>
+      <!-- Tabs -->
+      <div class="flex gap-1 p-1 rounded-xl bg-gray-100">
+        <button v-for="t in mainTabs" :key="t.key"
+          @click="mainTab = t.key; if(t.key==='stats' && !stats) loadStats()"
+          class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-150"
+          :class="mainTab === t.key
+            ? 'bg-white text-orange-500 shadow-sm'
+            : 'text-gray-500 hover:text-gray-700'">
+          <span class="text-base leading-none">{{ t.emoji }}</span>
+          <span>{{ t.label }}</span>
+        </button>
       </div>
 
-      <template v-else>
+      <!-- ── ESTADÍSTICAS ──────────────────────────────────────────── -->
+      <template v-if="mainTab === 'stats'">
 
-        <!-- Zone cards -->
-        <div v-for="zone in zones" :key="zone.key" class="card overflow-hidden">
-
-          <!-- Zone header -->
-          <div class="flex items-center gap-3 px-5 py-4" :style="`border-bottom:1px solid ${zone.border}`">
-            <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" :style="`background:${zone.color}1a`">
-              <component :is="zone.icon" class="w-4 h-4" :style="`color:${zone.color}`" />
-            </div>
-            <div class="flex-1">
-              <input v-model="zoneNames[zone.key]" type="text"
-                class="text-[14px] font-semibold bg-transparent outline-none transition-all"
-                style="color:#111827;border-bottom:1px solid transparent;width:200px"
-                @focus="e => e.target.style.borderBottomColor=zone.color"
-                @blur="e => e.target.style.borderBottomColor='transparent'" />
-              <p class="text-[11px] mt-0.5 font-medium" :style="`color:${zone.color}`">{{ zone.level }}</p>
-            </div>
-            <div class="text-right shrink-0">
-              <p class="text-[11px]" style="color:#6b7280">
-                <span class="font-medium" style="color:#374151">{{ selectedCats(zone.key).length }}</span> categorías ·
-                <span class="font-medium" style="color:#374151">{{ customDomains[zone.key].length }}</span> bloqueados ·
-                <span class="font-medium" style="color:#374151">{{ whitelists[zone.key].length }}</span> permitidos
-              </p>
-              <div v-if="cfg[`zone_${zone.key}_doh`]" class="flex items-center gap-1.5 justify-end mt-1">
-                <code class="text-[9px] truncate max-w-[220px]" style="color:#9ca3af">
-                  https://{{ cfg[`zone_${zone.key}_doh`] }}.cloudflare-gateway.com/dns-query
-                </code>
-                <button @click="copyDoh(zone.key)" class="flex-shrink-0" style="color:#9ca3af"
-                  @mouseenter="e => e.currentTarget.style.color='#374151'"
-                  @mouseleave="e => e.currentTarget.style.color='#9ca3af'">
-                  <ClipboardDocumentIcon class="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tabs -->
-          <div class="flex" style="border-bottom:1px solid #f3f4f6">
-            <button v-for="tab in zoneTabs" :key="tab.key"
-              @click="activeTab[zone.key] = tab.key"
-              class="px-5 py-2.5 text-[12px] font-medium transition-all"
-              :style="activeTab[zone.key] === tab.key
-                ? `border-bottom:2px solid ${zone.color};color:${zone.color};margin-bottom:-1px`
-                : 'color:#9ca3af;border-bottom:2px solid transparent;margin-bottom:-1px'">
-              {{ tab.label }}
-              <span class="ml-1.5 text-[10px]" :style="activeTab[zone.key] === tab.key ? `color:${zone.color}` : 'color:#d1d5db'">
-                <template v-if="tab.key === 'security'">{{ selectedCats(zone.key).filter(id => groupCats('security').map(c=>c.id).includes(id)).length }}/{{ groupCats('security').length }}</template>
-                <template v-else-if="tab.key === 'content'">{{ selectedCats(zone.key).filter(id => groupCats('content').map(c=>c.id).includes(id)).length }}/{{ groupCats('content').length }}</template>
-                <template v-else-if="tab.key === 'blocked'">{{ customDomains[zone.key].length }}</template>
-                <template v-else-if="tab.key === 'allowed'">{{ whitelists[zone.key].length }}</template>
-              </span>
+        <!-- Controls -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Day selector -->
+          <div class="flex gap-0.5 p-0.5 rounded-lg bg-gray-100">
+            <button v-for="d in [1,7,30]" :key="d"
+              @click="statsDays = d; loadStats()"
+              class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+              :class="statsDays === d ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+              {{ d === 1 ? 'Hoy' : d === 7 ? '7 días' : '30 días' }}
             </button>
           </div>
 
-          <!-- Tab content -->
-          <div class="px-5 py-4">
-
-            <!-- Security / Content categories -->
-            <template v-if="activeTab[zone.key] === 'security' || activeTab[zone.key] === 'content'">
-              <div class="flex items-center gap-2 mb-3">
-                <button @click="selectAll(zone.key, activeTab[zone.key])"
-                  class="text-[11px] px-2.5 py-1 rounded-lg transition-all"
-                  style="border:1px solid #e5e7eb;color:#6b7280"
-                  @mouseenter="e => e.currentTarget.style.background='#f9fafb'"
-                  @mouseleave="e => e.currentTarget.style.background='transparent'">
-                  Seleccionar todos
-                </button>
-                <button @click="clearAll(zone.key, activeTab[zone.key])"
-                  class="text-[11px] px-2.5 py-1 rounded-lg transition-all"
-                  style="border:1px solid #e5e7eb;color:#6b7280"
-                  @mouseenter="e => e.currentTarget.style.background='#f9fafb'"
-                  @mouseleave="e => e.currentTarget.style.background='transparent'">
-                  Ninguno
-                </button>
-              </div>
-              <div class="grid grid-cols-3 gap-1.5">
-                <label v-for="cat in groupCats(activeTab[zone.key])" :key="cat.id"
-                  class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-[12px]"
-                  :style="isCatSelected(zone.key, cat.id)
-                    ? `background:${zone.color}12;border:1px solid ${zone.color}40;color:#111827`
-                    : 'background:#f9fafb;border:1px solid transparent;color:#6b7280'"
-                  @mouseenter="e => { if(!isCatSelected(zone.key, cat.id)) e.currentTarget.style.background='#f3f4f6' }"
-                  @mouseleave="e => { if(!isCatSelected(zone.key, cat.id)) e.currentTarget.style.background=isCatSelected(zone.key, cat.id)?`${zone.color}12`:'#f9fafb' }">
-                  <input type="checkbox" :checked="isCatSelected(zone.key, cat.id)"
-                    @change="toggleCat(zone.key, cat.id)"
-                    class="rounded flex-shrink-0" :style="`accent-color:${zone.color}`" />
-                  {{ cat.name }}
-                </label>
-              </div>
-            </template>
-
-            <!-- Custom blocked domains -->
-            <template v-else-if="activeTab[zone.key] === 'blocked'">
-              <p class="text-[12px] mb-3" style="color:#6b7280">
-                Dominios adicionales a bloquear en esta zona, además de las categorías seleccionadas.
-                Un dominio por línea. Admite <code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:11px">*.ejemplo.com</code>
-              </p>
-              <textarea v-model="domainInputs[zone.key]" @blur="parseDomains(zone.key)"
-                rows="6" placeholder="redesocial.com&#10;*.streaming.net&#10;juego.io"
-                class="w-full px-3 py-2.5 rounded-lg text-[12px] font-mono outline-none resize-none transition-all"
-                style="border:1px solid #d1d5db;color:#374151"
-                @focus="e => e.target.style.borderColor=zone.color"
-                @blur2="e => e.target.style.borderColor='#d1d5db'"></textarea>
-              <div v-if="customDomains[zone.key].length" class="flex flex-wrap gap-1.5 mt-2">
-                <span v-for="d in customDomains[zone.key]" :key="d"
-                  class="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-mono"
-                  :style="`background:${zone.color}14;color:${zone.color};border:1px solid ${zone.color}33`">
-                  {{ d }}
-                  <button @click="removeDomain(zone.key, d)" style="opacity:0.6"
-                    @mouseenter="e => e.currentTarget.style.opacity='1'"
-                    @mouseleave="e => e.currentTarget.style.opacity='0.6'">×</button>
-                </span>
-              </div>
-            </template>
-
-            <!-- Whitelist (allowed domains) -->
-            <template v-else-if="activeTab[zone.key] === 'allowed'">
-              <p class="text-[12px] mb-3" style="color:#6b7280">
-                Dominios que <strong>siempre se permitirán</strong> en esta zona aunque estén en una categoría bloqueada.
-                Un dominio por línea.
-              </p>
-              <textarea v-model="whitelistInputs[zone.key]" @blur="parseWhitelist(zone.key)"
-                rows="6" placeholder="recursoseducativos.com&#10;*.google.com&#10;moodle.escuela.es"
-                class="w-full px-3 py-2.5 rounded-lg text-[12px] font-mono outline-none resize-none transition-all"
-                style="border:1px solid #d1d5db;color:#374151"
-                @focus="e => e.target.style.borderColor='#16a34a'"
-                @blur2="e => e.target.style.borderColor='#d1d5db'"></textarea>
-              <div v-if="whitelists[zone.key].length" class="flex flex-wrap gap-1.5 mt-2">
-                <span v-for="d in whitelists[zone.key]" :key="d"
-                  class="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-mono"
-                  style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0">
-                  {{ d }}
-                  <button @click="removeWhitelist(zone.key, d)" style="opacity:0.6"
-                    @mouseenter="e => e.currentTarget.style.opacity='1'"
-                    @mouseleave="e => e.currentTarget.style.opacity='0.6'">×</button>
-                </span>
-              </div>
-            </template>
-
+          <!-- Zone selector -->
+          <div class="flex gap-0.5 p-0.5 rounded-lg bg-gray-100">
+            <button
+              @click="statsZone = null; loadStats()"
+              class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+              :class="statsZone === null ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+              Todas
+            </button>
+            <button v-for="zone in zones" :key="zone.key"
+              @click="statsZone = zone.key; loadStats()"
+              class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+              :class="statsZone === zone.key ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+              :style="statsZone === zone.key ? `color:${zone.color}` : ''">
+              {{ zoneNames[zone.key] }}
+            </button>
           </div>
+
+          <button @click="loadStats" :disabled="loadingStats"
+            class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+            <ArrowPathIcon class="w-3.5 h-3.5" :class="loadingStats ? 'animate-spin' : ''" />
+            Actualizar
+          </button>
         </div>
 
-        <!-- Actions -->
-        <div class="flex items-center gap-3 flex-wrap">
-          <button @click="saveOnly" :disabled="saving || applying"
-            class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all"
-            :style="(saving || applying) ? 'background:#f3f4f6;color:#9ca3af;cursor:not-allowed' : 'background:#f3f4f6;color:#374151;border:1px solid #e5e7eb'"
-            @mouseenter="e => { if(!saving && !applying) e.currentTarget.style.background='#e5e7eb' }"
-            @mouseleave="e => { if(!saving && !applying) e.currentTarget.style.background='#f3f4f6' }">
-            <ArrowPathIcon v-if="saving" class="w-3.5 h-3.5 animate-spin" />
-            <span>{{ saving ? 'Guardando...' : 'Guardar configuración' }}</span>
-          </button>
-
-          <button @click="applyZones" :disabled="applying || saving"
-            class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-medium text-white transition-all"
-            :style="(applying || saving) ? 'background:#9ca3af;cursor:not-allowed' : 'background:#f97316'">
-            <ArrowPathIcon v-if="applying" class="w-4 h-4 animate-spin" />
-            <ShieldCheckIcon v-else class="w-4 h-4" />
-            {{ applying ? 'Aplicando...' : 'Guardar y aplicar a Cloudflare' }}
-          </button>
-
-          <p class="text-[11px]" style="color:#9ca3af">
-            "Guardar" guarda localmente · "Aplicar" envía los cambios a Cloudflare
-          </p>
+        <!-- Loading -->
+        <div v-if="loadingStats"
+          class="rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center justify-center gap-2.5 py-16 text-gray-300">
+          <ArrowPathIcon class="w-5 h-5 animate-spin" />
+          <span class="text-sm">Cargando estadísticas…</span>
         </div>
 
-        <!-- Result -->
-        <div v-if="result" class="rounded-xl p-4"
-          :style="result.ok ? 'background:#f0fdf4;border:1px solid #bbf7d0' : 'background:#fef2f2;border:1px solid #fecaca'">
-          <div class="flex items-center gap-2.5">
-            <CheckCircleIcon v-if="result.ok" class="w-4 h-4 flex-shrink-0" style="color:#16a34a" />
-            <ExclamationCircleIcon v-else class="w-4 h-4 flex-shrink-0" style="color:#dc2626" />
-            <p class="text-[12px] font-medium" :style="result.ok ? 'color:#15803d' : 'color:#991b1b'">{{ result.msg }}</p>
+        <template v-else-if="stats">
+
+          <!-- KPI cards -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="rounded-2xl p-5 bg-gradient-to-br from-emerald-50 to-green-100 border border-emerald-100">
+              <p class="text-3xl font-black text-emerald-700 tabular-nums">{{ stats.total_allowed.toLocaleString() }}</p>
+              <p class="text-xs font-semibold text-emerald-600 mt-1 uppercase tracking-wide">Permitidas</p>
+            </div>
+            <div class="rounded-2xl p-5 bg-gradient-to-br from-red-50 to-rose-100 border border-red-100">
+              <p class="text-3xl font-black text-red-600 tabular-nums">{{ stats.total_blocked.toLocaleString() }}</p>
+              <p class="text-xs font-semibold text-red-500 mt-1 uppercase tracking-wide">Bloqueadas</p>
+            </div>
+            <div class="rounded-2xl p-5 bg-gradient-to-br from-gray-50 to-slate-100 border border-gray-200">
+              <p class="text-3xl font-black text-gray-800 tabular-nums">
+                {{ stats.total_allowed + stats.total_blocked > 0
+                  ? Math.round(stats.total_blocked / (stats.total_allowed + stats.total_blocked) * 100) : 0 }}%
+              </p>
+              <p class="text-xs font-semibold text-gray-400 mt-1 uppercase tracking-wide">Tasa de bloqueo</p>
+            </div>
           </div>
+
+          <!-- Lo más visitado -->
+          <div v-if="topVisited.length" class="space-y-3">
+            <div class="flex items-center justify-between">
+              <p class="text-sm font-bold text-gray-800">Lo más visitado</p>
+              <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">consultas permitidas</span>
+            </div>
+            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50">
+              <div v-for="(app, i) in topVisited.slice(0, 10)" :key="app.app"
+                class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                <!-- Rank -->
+                <span class="text-xs font-black tabular-nums flex-shrink-0 w-5 text-right"
+                  :class="i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-orange-300' : 'text-gray-200'">
+                  {{ i + 1 }}
+                </span>
+                <!-- Logo -->
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  :style="`background:#${BRAND_ICONS[app.app]?.hex || 'f3f4f6'}18`">
+                  <svg v-if="BRAND_ICONS[app.app]" viewBox="0 0 24 24" class="w-4 h-4"
+                    :fill="`#${BRAND_ICONS[app.app].hex === '000000' ? '374151' : BRAND_ICONS[app.app].hex}`">
+                    <path :d="BRAND_ICONS[app.app].path" />
+                  </svg>
+                  <span v-else class="text-sm">🌐</span>
+                </div>
+                <!-- Name + bar -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-gray-800 truncate">{{ app.app }}</span>
+                    <span class="text-xs font-semibold text-gray-500 ml-2 flex-shrink-0 tabular-nums">
+                      {{ app.count.toLocaleString() }}
+                    </span>
+                  </div>
+                  <div class="h-1 rounded-full bg-gray-100 overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-700"
+                      :style="`width:${Math.round(app.count / maxVisited * 100)}%;background:${app.color}`">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lo más bloqueado por app -->
+          <div v-if="topBlocked.length" class="space-y-3">
+            <div class="flex items-center justify-between">
+              <p class="text-sm font-bold text-gray-800">Lo más bloqueado</p>
+              <span class="text-[10px] font-semibold text-red-400 uppercase tracking-wide">consultas bloqueadas</span>
+            </div>
+            <div class="rounded-2xl bg-white border border-red-50 shadow-sm overflow-hidden divide-y divide-gray-50">
+              <div v-for="(app, i) in topBlocked.slice(0, 8)" :key="app.app"
+                class="flex items-center gap-3 px-4 py-3 hover:bg-red-50/30 transition-colors">
+                <span class="text-xs font-black tabular-nums flex-shrink-0 w-5 text-right text-gray-200">
+                  {{ i + 1 }}
+                </span>
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  :style="`background:#${BRAND_ICONS[app.app]?.hex || 'f3f4f6'}18`">
+                  <svg v-if="BRAND_ICONS[app.app]" viewBox="0 0 24 24" class="w-4 h-4"
+                    :fill="`#${BRAND_ICONS[app.app].hex === '000000' ? '374151' : BRAND_ICONS[app.app].hex}`">
+                    <path :d="BRAND_ICONS[app.app].path" />
+                  </svg>
+                  <span v-else class="text-sm">🌐</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-gray-800 truncate">{{ app.app }}</span>
+                    <span class="text-xs font-bold text-red-400 ml-2 flex-shrink-0 tabular-nums">
+                      {{ app.count.toLocaleString() }}
+                    </span>
+                  </div>
+                  <div class="h-1 rounded-full bg-red-50 overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-red-300 to-rose-500 transition-all duration-700"
+                      :style="`width:${Math.round(app.count / maxBlockedCount * 100)}%`">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- By zone -->
+          <div v-if="Object.keys(stats.by_location).length"
+            class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-4">
+            <p class="text-sm font-bold text-gray-800">Por zona</p>
+            <div v-for="(v, loc) in stats.by_location" :key="loc" class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-gray-700">{{ loc }}</span>
+                <div class="flex items-center gap-3 text-xs">
+                  <span class="text-emerald-600 font-medium">{{ v.allowed.toLocaleString() }} ✓</span>
+                  <span class="text-red-500 font-medium">{{ v.blocked.toLocaleString() }} ✗</span>
+                </div>
+              </div>
+              <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+                <div class="h-full rounded-full bg-gradient-to-r from-red-400 to-rose-500 transition-all duration-500"
+                  :style="`width:${v.allowed + v.blocked > 0 ? Math.round(v.blocked / (v.allowed + v.blocked) * 100) : 0}%`">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Domain detail (expandable) -->
+          <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+            <button @click="statsExpanded = !statsExpanded"
+              class="w-full flex items-center justify-between px-5 py-3.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors">
+              <span>Ver detalle por dominio</span>
+              <ChevronDownIcon class="w-4 h-4 transition-transform duration-200" :class="statsExpanded ? 'rotate-180' : ''" />
+            </button>
+
+            <div v-if="statsExpanded" class="border-t border-gray-100">
+
+              <!-- Blocked by category -->
+              <div class="px-5 pt-4 pb-2">
+                <p class="text-xs font-bold text-gray-800 mb-3">Bloqueados por categoría</p>
+                <div v-if="blockedByCategory.length" class="space-y-3">
+                  <div v-for="cat in blockedByCategory" :key="cat.key"
+                    class="rounded-xl border border-gray-100 overflow-hidden">
+                    <!-- Category header -->
+                    <div class="flex items-center justify-between px-3 py-2 bg-gray-50">
+                      <div class="flex items-center gap-2">
+                        <span class="text-base leading-none">{{ cat.emoji }}</span>
+                        <span class="text-xs font-bold text-gray-700">{{ cat.name }}</span>
+                      </div>
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500 ring-1 ring-red-100">
+                        {{ cat.items.reduce((s, i) => s + i.count, 0).toLocaleString() }} bloqueados
+                      </span>
+                    </div>
+                    <!-- Domain list -->
+                    <div class="divide-y divide-gray-50 max-h-40 overflow-auto">
+                      <div v-for="(item, i) in cat.items" :key="item.name"
+                        class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 transition-colors">
+                        <span class="text-[10px] w-4 text-right text-gray-300 flex-shrink-0 tabular-nums">{{ i + 1 }}</span>
+                        <span class="flex-1 font-mono text-[11px] text-gray-700 truncate">{{ item.name }}</span>
+                        <span class="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-400">
+                          {{ item.count.toLocaleString() }}×
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p v-else class="py-6 text-center text-xs text-gray-400">Sin bloqueos ✓</p>
+              </div>
+
+              <!-- Divider -->
+              <div class="border-t border-gray-100 mx-5 my-2"></div>
+
+              <!-- Allowed domains -->
+              <div class="px-5 pb-4">
+                <p class="text-xs font-bold text-gray-800 mb-3">Más consultados (permitidos)</p>
+                <div v-if="stats.top_allowed.length" class="rounded-xl border border-gray-100 overflow-hidden divide-y divide-gray-50 max-h-52 overflow-auto">
+                  <div v-for="(item, i) in stats.top_allowed" :key="item.name"
+                    class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 transition-colors">
+                    <span class="text-[10px] w-4 text-right text-gray-300 flex-shrink-0 tabular-nums">{{ i + 1 }}</span>
+                    <span class="flex-1 font-mono text-[11px] text-gray-700 truncate">{{ item.name }}</span>
+                    <span class="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                      {{ item.count.toLocaleString() }}×
+                    </span>
+                  </div>
+                </div>
+                <p v-else class="py-6 text-center text-xs text-gray-400">Sin datos</p>
+              </div>
+
+            </div>
+          </div>
+
+        </template>
+
+        <div v-else class="rounded-2xl border border-dashed border-gray-200 p-12 text-center">
+          <p class="text-sm text-gray-400">Pulsa "Actualizar" para cargar estadísticas</p>
         </div>
 
       </template>
+
+      <!-- ── FILTRADO ─────────────────────────────────────────────────── -->
+      <template v-else-if="mainTab === 'filter'">
+
+        <div v-if="!categories.length" class="rounded-2xl bg-white border border-gray-100 p-8 text-center">
+          <ArrowPathIcon class="w-5 h-5 mx-auto animate-spin text-gray-300 mb-2" />
+          <p class="text-xs text-gray-400">Cargando configuración…</p>
+        </div>
+
+        <template v-else>
+
+          <!-- Toggle grid (hidden when advanced config is open) -->
+          <div v-if="!filterExpanded" class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+            <!-- Header -->
+            <div class="grid grid-cols-4 px-5 py-3 bg-gray-50 border-b border-gray-100">
+              <div></div>
+              <div v-for="zone in zones" :key="zone.key" class="text-center">
+                <component :is="zone.icon" class="w-4 h-4 mx-auto mb-0.5" :style="`color:${zone.color}`" />
+                <p class="text-[11px] font-bold" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
+              </div>
+            </div>
+            <!-- Rows -->
+            <div v-for="(group, gi) in FILTER_GROUPS" :key="group.key"
+              class="grid grid-cols-4 px-5 py-3.5 items-center"
+              :class="gi < FILTER_GROUPS.length - 1 ? 'border-b border-gray-50' : ''">
+              <div class="flex items-center gap-2.5">
+                <span class="text-xl leading-none">{{ group.emoji }}</span>
+                <div>
+                  <p class="text-xs font-bold text-gray-800">{{ group.name }}</p>
+                  <p class="text-[10px] text-gray-400 leading-tight mt-0.5">{{ group.desc }}</p>
+                </div>
+              </div>
+              <div v-for="zone in zones" :key="zone.key" class="flex justify-center">
+                <!-- Locked -->
+                <div v-if="group.locked"
+                  class="relative w-10 h-5 rounded-full bg-gray-200 flex items-center cursor-not-allowed"
+                  title="Siempre activo">
+                  <div class="absolute right-0.5 w-4 h-4 rounded-full bg-white/60 shadow-sm"></div>
+                </div>
+                <!-- Toggle -->
+                <button v-else
+                  @click="filterState[zone.key][group.key] = !filterState[zone.key][group.key]"
+                  class="relative w-10 h-5 rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                  :style="filterState[zone.key][group.key]
+                    ? `background:${zone.color};`
+                    : 'background:#e5e7eb;'">
+                  <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200"
+                    :class="filterState[zone.key][group.key] ? 'right-0.5' : 'left-0.5'"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced config (expandable) -->
+          <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+            <button @click="filterExpanded = !filterExpanded"
+              class="w-full flex items-center justify-between px-5 py-4 text-xs font-bold hover:bg-gray-50 transition-colors"
+              :class="filterExpanded ? 'text-orange-500' : 'text-gray-500'">
+              <div class="flex items-center gap-2">
+                <WrenchScrewdriverIcon class="w-4 h-4" />
+                {{ filterExpanded ? 'Modo avanzado activo — oculta los toggles básicos' : 'Configuración avanzada de categorías' }}
+              </div>
+              <ChevronDownIcon class="w-4 h-4 transition-transform duration-200" :class="filterExpanded ? 'rotate-180' : ''" />
+            </button>
+
+            <div v-if="filterExpanded" class="border-t border-gray-100">
+              <div v-for="(zone, zi) in zones" :key="zone.key"
+                class="px-5 py-5"
+                :class="zi < zones.length - 1 ? 'border-b border-gray-50' : ''">
+                <div class="flex items-center gap-2 mb-4">
+                  <div class="w-6 h-6 rounded-lg flex items-center justify-center" :style="`background:${zone.color}15`">
+                    <component :is="zone.icon" class="w-3.5 h-3.5" :style="`color:${zone.color}`" />
+                  </div>
+                  <p class="text-sm font-bold" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
+                </div>
+                <div class="flex gap-1.5 mb-4">
+                  <button v-for="tab in advTabs" :key="tab.key"
+                    @click="activeTab[zone.key] = tab.key"
+                    class="px-3 py-1 text-[11px] font-bold rounded-lg transition-all"
+                    :style="activeTab[zone.key] === tab.key
+                      ? `background:${zone.color};color:#fff`
+                      : 'background:#f3f4f6;color:#9ca3af'">
+                    {{ tab.label }}
+                  </button>
+                </div>
+                <div v-if="activeTab[zone.key] === 'security' || activeTab[zone.key] === 'content'" class="grid grid-cols-3 gap-1.5">
+                  <label v-for="cat in groupCats(activeTab[zone.key])" :key="cat.id"
+                    class="flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer transition-all text-[11px] font-medium"
+                    :style="isCatSelected(zone.key, cat.id)
+                      ? `background:${zone.color}12;outline:1.5px solid ${zone.color}50;color:#111827`
+                      : 'background:#f9fafb;color:#9ca3af'">
+                    <input type="checkbox" :checked="isCatSelected(zone.key, cat.id)"
+                      @change="toggleCat(zone.key, cat.id)"
+                      class="rounded flex-shrink-0" :style="`accent-color:${zone.color}`" />
+                    {{ cat.name }}
+                  </label>
+                </div>
+                <div v-else-if="activeTab[zone.key] === 'blocked'">
+                  <textarea v-model="domainInputs[zone.key]" @blur="parseDomains(zone.key)"
+                    rows="4" placeholder="redesocial.com&#10;*.streaming.net"
+                    class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
+                </div>
+                <div v-else-if="activeTab[zone.key] === 'allowed'">
+                  <textarea v-model="whitelistInputs[zone.key]" @blur="parseWhitelist(zone.key)"
+                    rows="4" placeholder="recursoseducativos.com&#10;*.google.com"
+                    class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Result banner -->
+          <div v-if="result"
+            class="flex items-center gap-3 p-4 rounded-2xl"
+            :class="result.ok ? 'bg-emerald-50 ring-1 ring-emerald-200' : 'bg-red-50 ring-1 ring-red-200'">
+            <CheckCircleIcon v-if="result.ok" class="w-5 h-5 text-emerald-500 flex-shrink-0" />
+            <ExclamationCircleIcon v-else class="w-5 h-5 text-red-400 flex-shrink-0" />
+            <p class="text-xs font-semibold" :class="result.ok ? 'text-emerald-700' : 'text-red-600'">{{ result.msg }}</p>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-3">
+            <button @click="applyFromToggles" :disabled="applying || saving"
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-150 shadow-sm"
+              :class="(applying || saving) ? 'bg-gray-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600 active:scale-95'">
+              <ArrowPathIcon v-if="applying" class="w-4 h-4 animate-spin" />
+              <ShieldCheckIcon v-else class="w-4 h-4" />
+              {{ applying ? 'Aplicando…' : 'Guardar y aplicar' }}
+            </button>
+            <p class="text-xs text-gray-400">Los cambios se aplican inmediatamente en Cloudflare</p>
+          </div>
+
+        </template>
+
+      </template>
+
+      <!-- ── ACCESO ──────────────────────────────────────────────────── -->
+      <template v-else-if="mainTab === 'access'">
+
+        <!-- Zone tabs -->
+        <div class="flex gap-2">
+          <button v-for="zone in zones" :key="zone.key"
+            @click="activeZoneAccess = zone.key"
+            class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-150"
+            :style="activeZoneAccess === zone.key
+              ? `background:${zone.color};color:#fff;box-shadow:0 2px 8px ${zone.color}40`
+              : `background:${zone.color}10;color:${zone.color}`">
+            <component :is="zone.icon" class="w-4 h-4" />
+            {{ zoneNames[zone.key] }}
+          </button>
+        </div>
+
+        <template v-if="cfg[`zone_${activeZoneAccess}_doh`]">
+
+          <!-- Info cards -->
+          <div class="space-y-3">
+
+            <!-- DNS estándar -->
+            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-3">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <GlobeAltIcon class="w-4 h-4 text-blue-500" />
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-gray-800">DNS estándar</p>
+                  <p class="text-xs text-gray-400 mt-0.5">Para dispositivos dentro de la red escolar (puerto 53)</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <code class="flex-1 text-xs font-mono px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 truncate">
+                  {{ (cfg[`zone_${activeZoneAccess}_ip`] || []).join('   ·   ') || 'No disponible' }}
+                </code>
+                <button @click="copyIp(activeZoneAccess)"
+                  class="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors flex-shrink-0">
+                  <ClipboardDocumentIcon class="w-3.5 h-3.5" /> Copiar
+                </button>
+              </div>
+            </div>
+
+            <!-- DoH -->
+            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-3">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+                  <ShieldCheckIcon class="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-gray-800">DNS-over-HTTPS</p>
+                  <p class="text-xs text-gray-400 mt-0.5">Para dispositivos fuera del colegio (casa, 4G)</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <code class="flex-1 text-xs font-mono px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 truncate">
+                  https://{{ cfg[`zone_${activeZoneAccess}_doh`] }}.cloudflare-gateway.com/dns-query
+                </code>
+                <button @click="copyDoh(activeZoneAccess)"
+                  class="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors flex-shrink-0">
+                  <ClipboardDocumentIcon class="w-3.5 h-3.5" /> Copiar
+                </button>
+              </div>
+            </div>
+
+            <!-- DNS Stamp -->
+            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-3">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
+                  <span class="text-sm">🔏</span>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-gray-800">DNS Stamp</p>
+                  <p class="text-xs text-gray-400 mt-0.5">Para UniFi DNS Shield, AdGuard, DNSCrypt</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <code class="flex-1 text-[10px] font-mono px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 truncate">
+                  {{ dnsStamp(activeZoneAccess) }}
+                </code>
+                <button @click="copyStamp(activeZoneAccess)"
+                  class="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors flex-shrink-0">
+                  <ClipboardDocumentIcon class="w-3.5 h-3.5" /> Copiar
+                </button>
+              </div>
+              <p class="text-[10px] text-gray-400">Servidor: 162.159.36.5 · Protocolo DoH</p>
+            </div>
+
+          </div>
+
+          <!-- Download profiles -->
+          <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-4">
+            <div>
+              <p class="text-sm font-bold text-gray-800">Instalar en dispositivos</p>
+              <p class="text-xs text-gray-400 mt-0.5">Perfil de configuración para fuera del colegio</p>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <button v-for="plat in PLATFORMS" :key="plat.key"
+                @click="downloadProfile(activeZoneAccess, plat.key)"
+                class="group flex flex-col items-center gap-3 p-5 rounded-2xl border border-gray-100 hover:border-orange-200 hover:bg-orange-50 transition-all duration-150">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center transition-transform duration-150 group-hover:scale-110"
+                  :style="`background:#${plat.icon.hex}15`">
+                  <svg viewBox="0 0 24 24" class="w-6 h-6"
+                    :fill="`#${plat.icon.hex === '000000' ? '374151' : plat.icon.hex}`">
+                    <path :d="plat.icon.path" />
+                  </svg>
+                </div>
+                <div class="text-center">
+                  <p class="text-xs font-bold text-gray-800">{{ plat.label }}</p>
+                  <p class="text-[10px] text-gray-400 mt-0.5">{{ plat.sub }}</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Networks -->
+          <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-sm font-bold text-gray-800">IPs del colegio</p>
+                <p class="text-xs text-gray-400 mt-0.5">Necesario para que el DNS estándar filtre correctamente</p>
+              </div>
+              <button @click="detectMyIp(activeZoneAccess)"
+                class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors font-semibold">
+                Detectar mi IP
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-2 min-h-[28px]">
+              <span v-for="net in zoneNetworks[activeZoneAccess]" :key="net"
+                class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-mono font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                {{ net }}
+                <button @click="removeNetwork(activeZoneAccess, net)"
+                  class="text-emerald-400 hover:text-emerald-700 transition-colors leading-none">×</button>
+              </span>
+              <span v-if="!zoneNetworks[activeZoneAccess].length" class="text-xs text-gray-400">Sin IPs registradas</span>
+            </div>
+            <div class="flex gap-2">
+              <input v-model="networkInputs[activeZoneAccess]"
+                type="text" placeholder="80.1.2.3 o 192.168.1.0/24"
+                class="flex-1 px-3 py-2 rounded-xl text-xs font-mono border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-gray-700 placeholder-gray-300"
+                @keydown.enter="addNetwork(activeZoneAccess)" />
+              <button @click="addNetwork(activeZoneAccess)"
+                class="px-3 py-2 rounded-xl text-xs font-bold bg-orange-50 text-orange-500 hover:bg-orange-100 border border-orange-200 transition-colors">
+                Añadir
+              </button>
+              <button @click="registerNetworks(activeZoneAccess)" :disabled="savingNetworks[activeZoneAccess]"
+                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white transition-all"
+                :class="savingNetworks[activeZoneAccess] ? 'bg-gray-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'">
+                <ArrowPathIcon v-if="savingNetworks[activeZoneAccess]" class="w-3.5 h-3.5 animate-spin" />
+                Guardar
+              </button>
+            </div>
+          </div>
+
+        </template>
+
+        <div v-else class="rounded-2xl border border-dashed border-gray-200 p-12 text-center">
+          <p class="text-sm text-gray-400">No hay datos de conexión para esta zona todavía</p>
+        </div>
+
+      </template>
+
     </template>
 
   </div>
@@ -230,9 +588,67 @@ import { selectedOrgId, allOrgs, orgSwitchKey } from '../../lib/orgStore'
 import { useToast } from '../../lib/toast'
 import {
   CloudIcon, ShieldCheckIcon, ArrowPathIcon, CheckCircleIcon,
-  ExclamationCircleIcon, ClipboardDocumentIcon,
+  ExclamationCircleIcon, ClipboardDocumentIcon, ChevronDownIcon,
   ShieldExclamationIcon, UserGroupIcon, WrenchScrewdriverIcon,
+  GlobeAltIcon,
 } from '@heroicons/vue/24/outline'
+import {
+  siYoutube, siTiktok, siInstagram, siFacebook, siWhatsapp,
+  siX, siNetflix, siTwitch, siSpotify, siRoblox, siSteam,
+  siDiscord, siSnapchat, siGoogle, siApple, siCloudflare, siAndroid,
+  siTelegram, siKahoot, siDuolingo, siKhanacademy, siWikipedia,
+  siAkamai, siFastly, siEpicgames, siEa, siPlaystation, siHbo,
+} from 'simple-icons'
+
+// Windows logo path (not in simple-icons)
+const WINDOWS_ICON = {
+  hex: '0078D4',
+  path: 'M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4h-13.051M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.851',
+}
+
+const BRAND_ICONS = {
+  // Social / messaging
+  'YouTube':          siYoutube,
+  'TikTok':           siTiktok,
+  'Instagram':        siInstagram,
+  'Facebook':         siFacebook,
+  'WhatsApp':         siWhatsapp,
+  'Twitter / X':      siX,
+  'Snapchat':         siSnapchat,
+  'Telegram':         siTelegram,
+  'Discord':          siDiscord,
+  // Streaming
+  'Netflix':          siNetflix,
+  'Twitch':           siTwitch,
+  'Spotify':          siSpotify,
+  'HBO / Max':        siHbo,
+  // Gaming
+  'Roblox':           siRoblox,
+  'Steam':            siSteam,
+  'Epic / Fortnite':  siEpicgames,
+  'EA / Origin':      siEa,
+  'PlayStation':      siPlaystation,
+  // Productivity / Education
+  'Google':           siGoogle,
+  'Microsoft':        WINDOWS_ICON,
+  'Apple':            siApple,
+  'Kahoot':           siKahoot,
+  'Duolingo':         siDuolingo,
+  'Khan Academy':     siKhanacademy,
+  'Wikipedia':        siWikipedia,
+  'Google Classroom': siGoogle,
+  // Infrastructure
+  'Amazon / AWS':     { hex: 'FF9900', path: 'M13.356 12.437c-.7.35-1.46.526-2.28.526a5.06 5.06 0 0 1-3.573-1.43 4.836 4.836 0 0 1-1.457-3.556 4.836 4.836 0 0 1 1.457-3.555 5.06 5.06 0 0 1 3.572-1.43c.82 0 1.58.176 2.28.527a4.43 4.43 0 0 1 1.64 1.484l-1.64 1.008a2.725 2.725 0 0 0-1.013-.91 2.873 2.873 0 0 0-1.267-.29 2.88 2.88 0 0 0-2.106.878 2.987 2.987 0 0 0-.878 2.288 2.99 2.99 0 0 0 .878 2.289 2.881 2.881 0 0 0 2.106.878c.468 0 .897-.097 1.267-.29a2.72 2.72 0 0 0 1.013-.912zm3.128-4.63h-2.282V6.21h6.504v1.597H18.42v5.957h-1.934zm6.066 5.957V6.21h1.934v5.958h3.516v1.596zM0 18.756c3.437 2.478 7.505 3.938 11.9 3.938 4.396 0 8.465-1.46 11.9-3.938.246-.18.027-.42-.25-.287-3.435 1.74-7.265 2.72-11.65 2.72-4.384 0-8.215-.98-11.65-2.72-.276-.133-.494.108-.25.287zm23.53-2.597c-.336-.43-2.22-.203-3.065-.102-.257.03-.296-.193-.066-.356 1.5-1.054 3.967-.75 4.253-.396.287.355-.076 2.824-1.488 4.003-.217.182-.424.085-.328-.154.32-.787 1.03-2.565.694-2.995z' },
+  'Akamai CDN':       siAkamai,
+  'Fastly CDN':       siFastly,
+  'Cloudflare':       siCloudflare,
+}
+
+const PLATFORMS = [
+  { key: 'macos',   icon: siApple,      label: 'macOS / iOS',  sub: '.mobileconfig' },
+  { key: 'windows', icon: WINDOWS_ICON, label: 'Windows 11',   sub: 'URL DoH copiada' },
+  { key: 'android', icon: siAndroid,    label: 'Android',      sub: 'Hostname copiado' },
+]
 
 const toast = useToast()
 
@@ -240,23 +656,106 @@ const currentOrgName = computed(() =>
   allOrgs.value.find(o => o.id === selectedOrgId.value)?.name || '...'
 )
 
-// ── State ─────────────────────────────────────────────────────────────────
+// ── App domain map for stats grouping ─────────────────────────────────────
+const APP_DOMAINS = [
+  // ── Social / messaging ────────────────────────────────────────────────
+  { app: 'YouTube',      color: '#ff0000', patterns: ['youtube.com', 'youtu.be', 'googlevideo.com', 'ytimg.com', 'yt3.ggpht', 'youtube-nocookie'] },
+  { app: 'TikTok',       color: '#010101', patterns: ['tiktok.com', 'tiktokcdn', 'muscdn.com', 'tiktokv.com', 'bytedance'] },
+  { app: 'Instagram',    color: '#e1306c', patterns: ['instagram.com', 'cdninstagram'] },
+  { app: 'Facebook',     color: '#1877f2', patterns: ['facebook.com', 'fb.com', 'fbcdn', 'fbsbx', 'facebook.net'] },
+  { app: 'WhatsApp',     color: '#25d366', patterns: ['whatsapp.com', 'whatsapp.net'] },
+  { app: 'Twitter / X',  color: '#000000', patterns: ['twitter.com', 'x.com', 'twimg.com', 't.co'] },
+  { app: 'Snapchat',     color: '#fffc00', patterns: ['snapchat.com', 'sc-cdn', 'snap.com'] },
+  { app: 'Telegram',     color: '#2CA5E0', patterns: ['telegram.org', 'telegram.me', 't.me', 'tdesktop'] },
+  { app: 'Discord',      color: '#5865f2', patterns: ['discord.com', 'discordapp', 'discord.gg'] },
+  // ── Streaming ─────────────────────────────────────────────────────────
+  { app: 'Netflix',      color: '#e50914', patterns: ['netflix.com', 'nflxvideo', 'nflxso', 'nflximg'] },
+  { app: 'Twitch',       color: '#9146ff', patterns: ['twitch.tv', 'jtvnw.net', 'twitchsvc', 'twitchapps'] },
+  { app: 'Spotify',      color: '#1db954', patterns: ['spotify.com', 'scdn.co', 'spotifycdn', 'audio-fa.scdn'] },
+  { app: 'Disney+',      color: '#0063e5', patterns: ['disneyplus.com', 'disney-plus', 'bamgrid.com', 'dssott.com'] },
+  { app: 'Prime Video',  color: '#00A8E0', patterns: ['primevideo.com', 'amazon.es/gp/video', 'aiv-cdn'] },
+  { app: 'HBO / Max',    color: '#002be7', patterns: ['hbomax.com', 'max.com', 'hbo.com'] },
+  // ── Gaming ────────────────────────────────────────────────────────────
+  { app: 'Roblox',       color: '#cc0000', patterns: ['roblox.com', 'rbxcdn'] },
+  { app: 'Steam',        color: '#1b2838', patterns: ['steampowered.com', 'steamcommunity', 'steamstatic', 'steamcontent', 'steam-chat'] },
+  { app: 'Epic / Fortnite', color: '#2d2d2d', patterns: ['epicgames.com', 'fortnite.com', 'unrealengine.com'] },
+  { app: 'Minecraft',    color: '#4caf50', patterns: ['minecraft.net', 'minecraftservices', 'mojang.com'] },
+  { app: 'EA / Origin',  color: '#f56c2d', patterns: ['ea.com', 'origin.com', 'eaassets'] },
+  { app: 'PlayStation',  color: '#003791', patterns: ['playstation.com', 'sonyentertainmentnetwork', 'playstation.net'] },
+  { app: 'Xbox',         color: '#107c10', patterns: ['xbox.com', 'xboxlive.com', 'xboxservices'] },
+  // ── Productivity / Education ──────────────────────────────────────────
+  { app: 'Google',       color: '#4285f4', patterns: ['google.com', 'google.es', 'googleapis.com', 'gstatic.com', 'googleusercontent', 'googlesyndication', 'googletagmanager', 'google-analytics', 'doubleclick', 'ggpht'] },
+  { app: 'Microsoft',    color: '#0078d4', patterns: ['microsoft.com', 'office.com', 'office365', 'live.com', 'outlook.com', 'msftconnecttest', 'microsoftonline', 'office.net', 'skype.com', 'azure.com', 'sfx.ms', 'teams.microsoft', 'sharepoint.com', 'onenote.com', 'bing.com', 'msn.com'] },
+  { app: 'Apple',        color: '#555555', patterns: ['apple.com', 'icloud.com', 'mzstatic.com', 'aaplimg.com', 'apple-mapkit', 'appattest'] },
+  { app: 'Kahoot',       color: '#46178f', patterns: ['kahoot.com', 'kahoot.it', 'kahoot.net'] },
+  { app: 'Canva',        color: '#00c4cc', patterns: ['canva.com', 'canva-apps'] },
+  { app: 'ClassDojo',    color: '#00adef', patterns: ['classdojo.com'] },
+  { app: 'Duolingo',     color: '#58cc02', patterns: ['duolingo.com', 'duolingo-images'] },
+  { app: 'Khan Academy', color: '#14BF96', patterns: ['khanacademy.org', 'kastatic.org', 'kasandbox.org'] },
+  { app: 'Wikipedia',    color: '#000000', patterns: ['wikipedia.org', 'wikimedia.org', 'wikidata.org'] },
+  { app: 'Google Classroom', color: '#34A853', patterns: ['classroom.google', 'meet.google'] },
+  // ── Infrastructure / CDN ─────────────────────────────────────────────
+  { app: 'Amazon / AWS', color: '#ff9900', patterns: ['amazon.com', 'amazonaws.com', 'amazon.es', 'cloudfront.net', 'amazonvideo'] },
+  { app: 'Akamai CDN',   color: '#009bde', patterns: ['akamai', 'akamaized.net', 'akamaihd.net', 'edgesuite.net', 'akamaiapis'] },
+  { app: 'Fastly CDN',   color: '#ff282d', patterns: ['fastly.net', 'fastlylb.net', 'fastlyinsights'] },
+  { app: 'Cloudflare',   color: '#f38020', patterns: ['cloudflare.com', 'cloudflare-gateway', 'cloudflarestorage', 'cloudflareinsights', '1.1.1.1', 'cloudflare-dns.com', 'cloudflare.net'] },
+]
 
-const cfg        = ref({ zones_created: false, last_check_ok: null, available_categories: [] })
+// ── Filter groups ──────────────────────────────────────────────────────────
+const FILTER_GROUPS = [
+  { key: 'adult',     name: 'Contenido adulto',      emoji: '🔞', desc: 'Pornografía y contenido para adultos',       locked: true,  cfSecurity: [2] },
+  { key: 'threats',   name: 'Amenazas de seguridad', emoji: '🦠', desc: 'Malware, phishing, ransomware, scams',       locked: true,  cfSecurity: [21] },
+  { key: 'social',    name: 'Redes sociales',         emoji: '📱', desc: 'Instagram, TikTok, Twitter, Snapchat, FB',  locked: false, domains: ['instagram.com', 'cdninstagram.com', 'tiktok.com', 'tiktokcdn.com', 'twitter.com', 'x.com', 'twimg.com', 'snapchat.com', 'sc-cdn.net', 'facebook.com', 'fbcdn.net', 'fb.com'] },
+  { key: 'streaming', name: 'Vídeo & streaming',      emoji: '📺', desc: 'YouTube, Netflix, Twitch, Disney+, HBO',    locked: false, domains: ['youtube.com', 'youtu.be', 'googlevideo.com', 'ytimg.com', 'netflix.com', 'nflxvideo.net', 'twitch.tv', 'jtvnw.net', 'disneyplus.com', 'hbomax.com', 'primevideo.com'] },
+  { key: 'gaming',    name: 'Videojuegos',            emoji: '🎮', desc: 'Roblox, Fortnite, Steam, Minecraft, EA',   locked: false, domains: ['roblox.com', 'rbxcdn.com', 'epicgames.com', 'fortnite.com', 'steampowered.com', 'steamcommunity.com', 'minecraft.net', 'ea.com'] },
+  { key: 'gambling',  name: 'Apuestas',               emoji: '🎲', desc: 'Casinos online, apuestas deportivas',       locked: false, cfContent: [8] },
+  { key: 'messaging', name: 'Mensajería',             emoji: '💬', desc: 'WhatsApp, Telegram, Discord',              locked: false, domains: ['whatsapp.com', 'whatsapp.net', 'telegram.org', 'telegram.me', 'discord.com', 'discord.gg', 'discordapp.com'] },
+]
+
+// ── Main tabs ──────────────────────────────────────────────────────────────
+const mainTabs = [
+  { key: 'stats',  label: 'Estadísticas', emoji: '📊' },
+  { key: 'filter', label: 'Filtrado',     emoji: '🛡️' },
+  { key: 'access', label: 'Acceso',       emoji: '🔗' },
+]
+const mainTab = ref('stats')
+
+// ── State ──────────────────────────────────────────────────────────────────
+const cfg      = ref({ zones_created: false, last_check_ok: null, available_categories: [], default_zone: null })
+const saving   = ref(false)
+const applying = ref(false)
+const result   = ref(null)
+const statsExpanded  = ref(false)
+const filterExpanded = ref(false)
+const activeZoneAccess = ref('students')
+
+// Stats
+const statsDays    = ref(7)
+const statsZone    = ref(null) // null = all zones
+const loadingStats = ref(false)
+const stats        = ref(null)
+
+// Filter state per zone
+const filterState = ref({
+  students: { adult: true, threats: true, social: false, streaming: false, gaming: false, gambling: false, messaging: false },
+  teachers: { adult: true, threats: true, social: false, streaming: false, gaming: false, gambling: false, messaging: false },
+  admin:    { adult: true, threats: true, social: false, streaming: false, gaming: false, gambling: false, messaging: false },
+})
+
+// Categories (detailed)
 const categories = ref([])
-const saving     = ref(false)
-const applying   = ref(false)
-const result     = ref(null)
+const zoneNames           = ref({ students: 'Alumnos', teachers: 'Profesores', admin: 'Administración' })
+const selectedCategories  = ref({ students: [], teachers: [], admin: [] })
+const customDomains       = ref({ students: [], teachers: [], admin: [] })
+const whitelists          = ref({ students: [], teachers: [], admin: [] })
+const zoneNetworks        = ref({ students: [], teachers: [], admin: [] })
+const domainInputs        = ref({ students: '', teachers: '', admin: '' })
+const whitelistInputs     = ref({ students: '', teachers: '', admin: '' })
+const networkInputs       = ref({ students: '', teachers: '', admin: '' })
+const activeTab           = ref({ students: 'security', teachers: 'security', admin: 'security' })
+const savingNetworks      = ref({ students: false, teachers: false, admin: false })
 
-const zoneNames       = ref({ students: 'Alumnos', teachers: 'Profesores', admin: 'Administración' })
-const selectedCategories = ref({ students: [], teachers: [], admin: [] })
-const customDomains   = ref({ students: [], teachers: [], admin: [] })
-const whitelists      = ref({ students: [], teachers: [], admin: [] })
-const domainInputs    = ref({ students: '', teachers: '', admin: '' })
-const whitelistInputs = ref({ students: '', teachers: '', admin: '' })
-const activeTab       = ref({ students: 'security', teachers: 'security', admin: 'security' })
-
-const zoneTabs = [
+const advTabs = [
   { key: 'security', label: 'Seguridad' },
   { key: 'content',  label: 'Contenido' },
   { key: 'blocked',  label: 'Bloqueados' },
@@ -269,13 +768,89 @@ const zones = [
   { key: 'admin',    level: 'Protección básica', color: '#2563eb', border: '#bfdbfe', icon: WrenchScrewdriverIcon },
 ]
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-
-function groupCats(cls) {
-  return categories.value.filter(c => cls === 'security' ? c.class === 'security' : c.class !== 'security')
+// ── Infer why a domain was blocked ────────────────────────────────────────
+function inferCategory(domainName) {
+  for (const group of FILTER_GROUPS) {
+    if (group.domains?.some(d => domainName.includes(d.replace('*.', '')))) return group
+  }
+  return null
 }
-function selectedCats(key)        { return selectedCategories.value[key] || [] }
-function isCatSelected(key, id)   { return selectedCats(key).includes(id) }
+
+const blockedByCategory = computed(() => {
+  if (!stats.value?.top_blocked?.length) return []
+  const groups = {}
+  const uncategorized = []
+  for (const item of stats.value.top_blocked) {
+    const group = inferCategory(item.name)
+    if (group) {
+      if (!groups[group.key]) groups[group.key] = { ...group, items: [] }
+      groups[group.key].items.push(item)
+    } else {
+      uncategorized.push(item)
+    }
+  }
+  const result = Object.values(groups).sort((a, b) =>
+    b.items.reduce((s, i) => s + i.count, 0) - a.items.reduce((s, i) => s + i.count, 0)
+  )
+  if (uncategorized.length) result.push({ key: 'other', name: 'Categoría Cloudflare', emoji: '☁️', items: uncategorized })
+  return result
+})
+
+// ── Computed ───────────────────────────────────────────────────────────────
+function buildAppMap(items, field) {
+  const apps = {}
+  for (const item of items) {
+    const appInfo = APP_DOMAINS.find(a => a.patterns.some(p => item.name.includes(p)))
+    const key = appInfo?.app || 'Otros'
+    if (!apps[key]) apps[key] = { app: key, color: appInfo?.color || '#9ca3af', count: 0 }
+    apps[key].count += item.count
+  }
+  return Object.values(apps).sort((a, b) => b.count - a.count)
+}
+
+const topVisited = computed(() => {
+  if (!stats.value) return []
+  return buildAppMap(stats.value.top_allowed || [], 'allowed')
+})
+
+const topBlocked = computed(() => {
+  if (!stats.value) return []
+  return buildAppMap(stats.value.top_blocked || [], 'blocked')
+})
+
+const maxVisited = computed(() => Math.max(1, ...topVisited.value.map(a => a.count)))
+const maxBlockedCount = computed(() => Math.max(1, ...topBlocked.value.map(a => a.count)))
+
+// legacy — kept for by-zone section
+const appStats = computed(() => {
+  if (!stats.value) return []
+  const apps = {}
+  function add(items, blocked) {
+    for (const item of items) {
+      const appInfo = APP_DOMAINS.find(a => a.patterns.some(p => item.name.includes(p)))
+      const key = appInfo?.app || 'Otros'
+      if (!apps[key]) apps[key] = { app: key, color: appInfo?.color || '#9ca3af', allowed: 0, blocked: 0 }
+      if (blocked) apps[key].blocked += item.count
+      else apps[key].allowed += item.count
+    }
+  }
+  add(stats.value.top_allowed || [], false)
+  add(stats.value.top_blocked || [], true)
+  return Object.values(apps).sort((a, b) => (b.allowed + b.blocked) - (a.allowed + a.blocked))
+})
+
+const maxAppTotal = computed(() =>
+  Math.max(1, ...appStats.value.map(a => a.allowed + a.blocked))
+)
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function groupCats(cls) {
+  return categories.value.filter(c => cls === 'security'
+    ? (c.class === 'free' || c.class === 'blocked')
+    : (c.class !== 'free' && c.class !== 'blocked'))
+}
+function selectedCats(key)      { return selectedCategories.value[key] || [] }
+function isCatSelected(key, id) { return selectedCats(key).includes(id) }
 
 function toggleCat(key, id) {
   const arr = selectedCategories.value[key]
@@ -284,25 +859,68 @@ function toggleCat(key, id) {
   else arr.splice(idx, 1)
 }
 
-function selectAll(key, tab) {
-  const ids = groupCats(tab).map(c => c.id)
-  ids.forEach(id => { if (!selectedCategories.value[key].includes(id)) selectedCategories.value[key].push(id) })
-}
-
-function clearAll(key, tab) {
-  const ids = groupCats(tab).map(c => c.id)
-  selectedCategories.value[key] = selectedCategories.value[key].filter(id => !ids.includes(id))
-}
-
 function parseDomains(key) {
   customDomains.value[key] = [...new Set(domainInputs.value[key].split('\n').map(l => l.trim()).filter(Boolean))]
 }
 function parseWhitelist(key) {
   whitelists.value[key] = [...new Set(whitelistInputs.value[key].split('\n').map(l => l.trim()).filter(Boolean))]
 }
-function removeDomain(key, d)    { customDomains.value[key] = customDomains.value[key].filter(x => x !== d); domainInputs.value[key] = customDomains.value[key].join('\n') }
-function removeWhitelist(key, d) { whitelists.value[key] = whitelists.value[key].filter(x => x !== d); whitelistInputs.value[key] = whitelists.value[key].join('\n') }
 
+function addNetwork(key) {
+  const raw = networkInputs.value[key].trim()
+  if (!raw) return
+  const cidr = raw.includes('/') ? raw : `${raw}/32`
+  if (!zoneNetworks.value[key].includes(cidr)) zoneNetworks.value[key].push(cidr)
+  networkInputs.value[key] = ''
+}
+function removeNetwork(key, n) { zoneNetworks.value[key] = zoneNetworks.value[key].filter(x => x !== n) }
+
+async function detectMyIp(key) {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json')
+    const { ip } = await res.json()
+    networkInputs.value[key] = ip
+    toast.success(`IP detectada: ${ip}`)
+  } catch { toast.error('No se pudo detectar la IP pública') }
+}
+
+// ── Filter state ───────────────────────────────────────────────────────────
+function initFilterState() {
+  for (const zone of ['students', 'teachers', 'admin']) {
+    const cats = selectedCategories.value[zone] || []
+    const doms = customDomains.value[zone] || []
+    for (const group of FILTER_GROUPS) {
+      if (group.locked) { filterState.value[zone][group.key] = true; continue }
+      const cfCats = [...(group.cfSecurity || []), ...(group.cfContent || [])]
+      const catMatch = cfCats.length > 0 && cfCats.some(id => cats.includes(id))
+      const domMatch = (group.domains || []).some(d => doms.includes(d))
+      filterState.value[zone][group.key] = catMatch || domMatch
+    }
+  }
+}
+
+async function applyFromToggles() {
+  zones.forEach(z => { parseDomains(z.key); parseWhitelist(z.key) })
+
+  for (const zone of ['students', 'teachers', 'admin']) {
+    const enabledCats = []
+    const enabledDoms = []
+    for (const group of FILTER_GROUPS) {
+      if (!filterState.value[zone][group.key]) continue
+      enabledCats.push(...(group.cfSecurity || []), ...(group.cfContent || []))
+      enabledDoms.push(...(group.domains || []))
+    }
+    selectedCategories.value[zone] = [...new Set(enabledCats)]
+    const allGroupDoms = FILTER_GROUPS.flatMap(g => g.domains || [])
+    const manualDoms = customDomains.value[zone].filter(d => !allGroupDoms.includes(d))
+    customDomains.value[zone] = [...new Set([...manualDoms, ...enabledDoms])]
+    domainInputs.value[zone] = customDomains.value[zone].join('\n')
+  }
+
+  await applyZones()
+}
+
+// ── API ────────────────────────────────────────────────────────────────────
 async function callApi(body) {
   const { data: { session } } = await supabase.auth.getSession()
   const res = await fetch(
@@ -316,35 +934,15 @@ async function callApi(body) {
   return await res.json()
 }
 
-function currentPayload() {
-  zones.forEach(z => { parseDomains(z.key); parseWhitelist(z.key) })
-  return {
-    zone_students_name: zoneNames.value.students,
-    zone_teachers_name: zoneNames.value.teachers,
-    zone_admin_name:    zoneNames.value.admin,
-    categories_students: selectedCategories.value.students,
-    categories_teachers: selectedCategories.value.teachers,
-    categories_admin:    selectedCategories.value.admin,
-    custom_blocked_students: customDomains.value.students,
-    custom_blocked_teachers: customDomains.value.teachers,
-    custom_blocked_admin:    customDomains.value.admin,
-    whitelist_students: whitelists.value.students,
-    whitelist_teachers: whitelists.value.teachers,
-    whitelist_admin:    whitelists.value.admin,
-  }
-}
-
-// ── Load ──────────────────────────────────────────────────────────────────
-
+// ── Load ───────────────────────────────────────────────────────────────────
 async function loadConfig() {
   if (!selectedOrgId.value) return
   const { data } = await supabase
     .from('cloudflare_configs')
-    .select('zones_created, last_check_ok, available_categories, zone_students_doh, zone_teachers_doh, zone_admin_doh, zone_students_name, zone_teachers_name, zone_admin_name, categories_students, categories_teachers, categories_admin, custom_blocked_students, custom_blocked_teachers, custom_blocked_admin, whitelist_students, whitelist_teachers, whitelist_admin')
+    .select('zones_created,last_check_ok,available_categories,default_zone,zone_students_doh,zone_teachers_doh,zone_admin_doh,zone_students_ip,zone_teachers_ip,zone_admin_ip,zone_students_name,zone_teachers_name,zone_admin_name,categories_students,categories_teachers,categories_admin,custom_blocked_students,custom_blocked_teachers,custom_blocked_admin,whitelist_students,whitelist_teachers,whitelist_admin,zone_students_networks,zone_teachers_networks,zone_admin_networks')
     .eq('org_id', selectedOrgId.value)
     .single()
   if (!data) return
-
   cfg.value = data
   zoneNames.value = {
     students: data.zone_students_name || 'Alumnos',
@@ -376,25 +974,45 @@ async function loadConfig() {
     teachers: (data.whitelist_teachers || []).join('\n'),
     admin:    (data.whitelist_admin    || []).join('\n'),
   }
+  zoneNetworks.value = {
+    students: data.zone_students_networks || [],
+    teachers: data.zone_teachers_networks || [],
+    admin:    data.zone_admin_networks    || [],
+  }
   if (data.available_categories?.length) categories.value = data.available_categories
+  initFilterState()
 }
 
-// ── Actions ───────────────────────────────────────────────────────────────
-
-async function saveOnly() {
-  saving.value = true
-  result.value = null
+async function loadStats() {
+  loadingStats.value = true
   try {
-    const r = await callApi({ action: 'save_zone_config', ...currentPayload() })
-    if (r.ok) {
-      toast.success('Configuración guardada')
-    } else {
-      result.value = { ok: false, msg: r.error || 'Error al guardar' }
+    const body = { action: 'get_stats', days: statsDays.value }
+    if (statsZone.value) {
+      const name = cfg.value[`zone_${statsZone.value}_name`] || zoneNames.value[statsZone.value]
+      body.location_name = name
     }
-  } catch (e) {
-    result.value = { ok: false, msg: e.message }
-  } finally {
-    saving.value = false
+    const r = await callApi(body)
+    if (r.ok) stats.value = r
+  } catch { /* ignore */ }
+  finally { loadingStats.value = false }
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+function currentPayload() {
+  zones.forEach(z => { parseDomains(z.key); parseWhitelist(z.key) })
+  return {
+    zone_students_name: zoneNames.value.students,
+    zone_teachers_name: zoneNames.value.teachers,
+    zone_admin_name:    zoneNames.value.admin,
+    categories_students: selectedCategories.value.students,
+    categories_teachers: selectedCategories.value.teachers,
+    categories_admin:    selectedCategories.value.admin,
+    custom_blocked_students: customDomains.value.students,
+    custom_blocked_teachers: customDomains.value.teachers,
+    custom_blocked_admin:    customDomains.value.admin,
+    whitelist_students: whitelists.value.students,
+    whitelist_teachers: whitelists.value.teachers,
+    whitelist_admin:    whitelists.value.admin,
   }
 }
 
@@ -404,24 +1022,111 @@ async function applyZones() {
   try {
     const r = await callApi({ action: 'apply_zones', ...currentPayload() })
     if (r.ok) {
-      result.value = { ok: true, msg: 'Configuración guardada y aplicada en Cloudflare Gateway' }
+      result.value = { ok: true, msg: 'Configuración aplicada en Cloudflare Gateway' }
       toast.success('Zonas actualizadas')
       await loadConfig()
     } else {
       result.value = { ok: false, msg: r.error || 'Error al aplicar' }
     }
-  } catch (e) {
-    result.value = { ok: false, msg: e.message }
-  } finally {
-    applying.value = false
-  }
+  } catch (e) { result.value = { ok: false, msg: e.message } }
+  finally { applying.value = false }
 }
 
+async function registerNetworks(key) {
+  savingNetworks.value[key] = true
+  try {
+    const r = await callApi({ action: 'register_networks', zone: key, networks: zoneNetworks.value[key] })
+    if (r.ok) toast.success('Redes guardadas en Cloudflare')
+    else toast.error(r.error || 'Error al guardar redes')
+  } catch (e) { toast.error(e.message) }
+  finally { savingNetworks.value[key] = false }
+}
+
+// ── Access helpers ─────────────────────────────────────────────────────────
 function copyDoh(key) {
   const sub = cfg.value[`zone_${key}_doh`]
   if (sub) { navigator.clipboard.writeText(`https://${sub}.cloudflare-gateway.com/dns-query`); toast.success('URL copiada') }
 }
 
-onMounted(loadConfig)
-watch(orgSwitchKey, () => { if (selectedOrgId.value) loadConfig() })
+function copyIp(key) {
+  const ips = cfg.value[`zone_${key}_ip`]
+  if (ips?.length) { navigator.clipboard.writeText(ips.join(', ')); toast.success('IP copiada') }
+}
+
+function dnsStamp(key) {
+  const sub = cfg.value[`zone_${key}_doh`]
+  if (!sub) return ''
+  const hostname = `${sub}.cloudflare-gateway.com`
+  const path = '/dns-query'
+  const addr = '162.159.36.5'
+  function lp(str) {
+    const bytes = new TextEncoder().encode(str)
+    const out = new Uint8Array(1 + bytes.length)
+    out[0] = bytes.length; out.set(bytes, 1); return out
+  }
+  const parts = [new Uint8Array([0x02]), new Uint8Array(8), lp(addr), new Uint8Array([0x00]), lp(hostname), lp(path)]
+  const len = parts.reduce((s, p) => s + p.length, 0)
+  const buf = new Uint8Array(len)
+  let off = 0; for (const p of parts) { buf.set(p, off); off += p.length }
+  const b64 = btoa(String.fromCharCode(...buf)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  return `sdns://${b64}`
+}
+
+function copyStamp(key) {
+  const stamp = dnsStamp(key)
+  if (stamp) { navigator.clipboard.writeText(stamp); toast.success('DNS stamp copiado') }
+}
+
+function downloadProfile(key, platform) {
+  const sub = cfg.value[`zone_${key}_doh`]
+  const name = zoneNames.value[key] || key
+  if (!sub) return
+  const dohUrl = `https://${sub}.cloudflare-gateway.com/dns-query`
+  if (platform === 'macos') {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>DNSSettings</key>
+            <dict>
+                <key>DNSProtocol</key><string>HTTPS</string>
+                <key>ServerAddresses</key>
+                <array><string>162.159.36.5</string><string>162.159.36.20</string></array>
+                <key>ServerURL</key><string>${dohUrl}</string>
+            </dict>
+            <key>PayloadDisplayName</key><string>PenwinSafe DNS - ${name}</string>
+            <key>PayloadIdentifier</key><string>com.penwin.dns.${key}</string>
+            <key>PayloadType</key><string>com.apple.dnsSettings.managed</string>
+            <key>PayloadUUID</key><string>A1B2C3D4-E5F6-7890-ABCD-EF${key.padEnd(10,'0').slice(0,10)}</string>
+            <key>PayloadVersion</key><integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key><string>PenwinSafe - DNS ${name}</string>
+    <key>PayloadIdentifier</key><string>com.penwin.dns.${key}.profile</string>
+    <key>PayloadRemovalDisallowed</key><false/>
+    <key>PayloadType</key><string>Configuration</string>
+    <key>PayloadUUID</key><string>B2C3D4E5-F6A7-8901-BCDE-EF${key.padEnd(10,'0').slice(0,10)}</string>
+    <key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>`
+    const blob = new Blob([xml], { type: 'application/x-apple-aspen-config' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `PenwinSafe-${name}.mobileconfig`; a.click()
+    URL.revokeObjectURL(url)
+    toast.success(`Perfil ${name} descargado`)
+  } else if (platform === 'windows') {
+    navigator.clipboard.writeText(dohUrl)
+    toast.success('URL DoH copiada — pégala en Configuración → Red → DNS de Windows 11')
+  } else if (platform === 'android') {
+    navigator.clipboard.writeText(`${sub}.cloudflare-gateway.com`)
+    toast.success('Hostname copiado — pégalo en Ajustes → Red → DNS Privado de Android')
+  }
+}
+
+onMounted(async () => { await loadConfig(); loadStats() })
+watch(orgSwitchKey, async () => { if (selectedOrgId.value) { await loadConfig(); loadStats() } })
 </script>
