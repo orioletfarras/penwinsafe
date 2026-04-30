@@ -1,95 +1,84 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-5">
 
-    <div>
-      <p class="text-[13px] font-semibold" style="color:#111827">Filtros de palabras clave</p>
-      <p class="text-[11px] mt-0.5" style="color:#6b7280">
-        El navegador PenwinSafe bloquea búsquedas que contengan estas palabras. Puedes activar/desactivar categorías y añadir términos personalizados.
-      </p>
+    <!-- Page header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-[13px] font-semibold" style="color:#111827">Filtros de búsqueda</p>
+        <p class="text-[11px] mt-0.5" style="color:#9ca3af">El navegador bloquea búsquedas que contengan estas palabras clave.</p>
+      </div>
+      <button @click="saveFilters" :disabled="saving"
+        class="text-[12px] font-semibold px-3.5 py-1.5 rounded-lg transition-colors disabled:opacity-40 flex items-center gap-2"
+        style="background:#006fff;color:#fff">
+        <svg v-if="saving" class="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="32" stroke-dashoffset="8"/></svg>
+        {{ saving ? 'Guardando…' : 'Guardar' }}
+      </button>
     </div>
 
-    <!-- Categories -->
-    <div v-for="cat in categories" :key="cat.id"
-      class="card overflow-hidden">
+    <p v-if="savedMsg" class="text-[11px] px-3 py-1.5 rounded-md w-fit"
+      :style="savedMsg.includes('Error') ? 'background:#fef2f2;color:#dc2626' : 'background:#f0fdf4;color:#16a34a'">
+      {{ savedMsg }}
+    </p>
 
-      <!-- Cat header -->
-      <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid #e5e7eb">
-        <div class="flex items-center gap-3">
-          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${cat.color}`"></span>
-          <div>
-            <p class="text-[12px] font-semibold" style="color:#111827">{{ cat.label }}</p>
-            <p class="text-[11px]" style="color:#6b7280">{{ cat.desc }}</p>
+    <!-- Category list -->
+    <div class="card divide-y" style="divide-color:#f3f4f6">
+      <div v-for="cat in categories" :key="cat.id" class="px-5 py-4">
+
+        <!-- Category header -->
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="w-2 h-2 rounded-full flex-shrink-0" :style="`background:${cat.color}`"></span>
+            <span class="text-[13px] font-semibold" style="color:#111827">{{ cat.label }}</span>
+            <span class="text-[10px] tabular-nums" style="color:#9ca3af">
+              {{ cat.keywords.length + (customWords[cat.id]?.length || 0) }} palabras
+            </span>
           </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-[10px]" style="color:#9ca3af">
-            {{ cat.keywords.length + (customWords[cat.id] || []).length }} palabras
-          </span>
-          <!-- Toggle switch -->
           <button @click="toggleCat(cat.id)"
-            class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+            class="relative inline-flex h-[18px] w-8 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-150"
             :style="enabledCats[cat.id] !== false ? 'background:#006fff' : 'background:#d1d5db'">
-            <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
-              :style="enabledCats[cat.id] !== false ? 'transform:translateX(16px)' : 'transform:translateX(0)'">
+            <span class="inline-block h-[14px] w-[14px] transform rounded-full bg-white shadow-sm transition-transform duration-150"
+              :style="enabledCats[cat.id] !== false ? 'transform:translateX(14px)' : 'transform:translateX(0)'">
             </span>
           </button>
         </div>
+
+        <!-- Keywords -->
+        <div :style="enabledCats[cat.id] === false ? 'opacity:0.35;pointer-events:none' : ''" class="space-y-2.5">
+          <div class="flex flex-wrap gap-1">
+            <span v-for="kw in cat.keywords" :key="kw"
+              class="text-[10px] px-1.5 py-px rounded"
+              style="background:#f3f4f6;color:#6b7280;font-family:ui-monospace,monospace">
+              {{ kw }}
+            </span>
+          </div>
+
+          <!-- Custom words -->
+          <div v-if="customWords[cat.id]?.length" class="flex flex-wrap gap-1">
+            <span v-for="(kw, i) in customWords[cat.id]" :key="kw"
+              class="flex items-center gap-1 text-[10px] px-1.5 py-px rounded"
+              style="background:#eff6ff;color:#2563eb;font-family:ui-monospace,monospace">
+              {{ kw }}
+              <button @click="removeCustom(cat.id, i)" class="opacity-50 hover:opacity-100 transition-opacity leading-none">×</button>
+            </span>
+          </div>
+
+          <!-- Add word input -->
+          <div class="flex items-center gap-2 pt-0.5">
+            <input v-model="newWord[cat.id]" type="text"
+              :placeholder="`Añadir palabra…`"
+              class="flex-1 text-[11px] px-2.5 py-1.5 rounded-md focus:outline-none"
+              style="background:#f9fafb;border:1px solid #e5e7eb;color:#111827;max-width:260px"
+              @keydown.enter="addCustom(cat.id)" />
+            <button @click="addCustom(cat.id)"
+              class="text-[11px] font-medium px-2.5 py-1.5 rounded-md transition-colors flex-shrink-0"
+              style="background:#f3f4f6;color:#374151;border:1px solid #e5e7eb"
+              :style="newWord[cat.id]?.trim() ? 'background:#006fff;color:#fff;border-color:#006fff' : ''">
+              Añadir
+            </button>
+          </div>
+        </div>
+
       </div>
-
-      <!-- Keywords -->
-      <div class="px-4 py-3 space-y-3" :style="enabledCats[cat.id] === false ? 'opacity:0.4;pointer-events:none' : ''">
-
-        <!-- Built-in chips -->
-        <div class="flex flex-wrap gap-1.5">
-          <span v-for="kw in (expandedCats[cat.id] ? cat.keywords : cat.keywords.slice(0, 20))" :key="kw"
-            class="text-[10px] px-2 py-0.5 rounded font-medium"
-            style="background:#f9fafb;color:#374151;border:1px solid #e5e7eb">
-            {{ kw }}
-          </span>
-          <button v-if="cat.keywords.length > 20" @click="expandedCats[cat.id] = !expandedCats[cat.id]"
-            class="text-[10px] px-2 py-0.5 rounded font-medium transition-colors"
-            style="background:#eff6ff;color:#006fff;border:1px solid #bfdbfe">
-            {{ expandedCats[cat.id] ? 'Ver menos' : `+ ${cat.keywords.length - 20} más` }}
-          </button>
-        </div>
-
-        <!-- Custom words -->
-        <div v-if="(customWords[cat.id] || []).length" class="flex flex-wrap gap-1.5">
-          <span v-for="(kw, i) in customWords[cat.id]" :key="kw"
-            class="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-medium"
-            style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe">
-            {{ kw }}
-            <button @click="removeCustom(cat.id, i)" class="ml-0.5 hover:text-red-500 transition-colors">×</button>
-          </span>
-        </div>
-
-        <!-- Add custom word -->
-        <div class="flex items-center gap-2">
-          <input
-            v-model="newWord[cat.id]"
-            type="text"
-            :placeholder="`Añadir palabra a ${cat.label}...`"
-            class="flex-1 px-2.5 py-1.5 rounded text-[11px] focus:outline-none transition-colors"
-            style="background:#f9fafb;border:1px solid #e5e7eb;color:#111827"
-            @keydown.enter="addCustom(cat.id)" />
-          <button @click="addCustom(cat.id)"
-            class="text-[11px] font-medium px-2.5 py-1.5 rounded transition-colors flex-shrink-0"
-            style="background:#006fff;color:#ffffff">
-            Añadir
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Save -->
-    <div class="flex items-center justify-between">
-      <p v-if="savedMsg" class="text-[11px]" :class="savedMsg.includes('Error') ? 'text-red-600' : 'text-green-700'">{{ savedMsg }}</p>
-      <span v-else></span>
-      <button @click="saveFilters" :disabled="saving"
-        class="text-[12px] font-semibold px-4 py-2 rounded transition-colors disabled:opacity-50"
-        style="background:#006fff;color:#ffffff">
-        {{ saving ? 'Guardando...' : 'Guardar configuración' }}
-      </button>
     </div>
 
   </div>
@@ -396,18 +385,18 @@ const BUILT_IN = {
 }
 
 const categories = [
-  { id: 'pornografia',      label: 'Pornografía',       color: '#dc2626', desc: 'Sitios y búsquedas de contenido sexual explícito',   keywords: BUILT_IN.pornografia },
-  { id: 'contenido_adulto', label: 'Contenido adulto',  color: '#ea580c', desc: 'Desnudos, erótico, plataformas adultas',             keywords: BUILT_IN.contenido_adulto },
-  { id: 'violencia',        label: 'Violencia',         color: '#b91c1c', desc: 'Vídeos gore, ejecuciones, torturas',                 keywords: BUILT_IN.violencia },
-  { id: 'drogas',           label: 'Drogas',            color: '#7c3aed', desc: 'Compra y venta de sustancias ilegales',              keywords: BUILT_IN.drogas },
-  { id: 'apuestas',         label: 'Apuestas',          color: '#d97706', desc: 'Casinos online, apuestas deportivas',                keywords: BUILT_IN.apuestas },
-  { id: 'odio',             label: 'Discurso de odio',  color: '#475569', desc: 'Racismo, nazismo, incitación al odio',              keywords: BUILT_IN.odio },
+  { id: 'pornografia',      label: 'Pornografía',       color: '#dc2626', keywords: BUILT_IN.pornografia },
+  { id: 'contenido_adulto', label: 'Contenido adulto',  color: '#ea580c', keywords: BUILT_IN.contenido_adulto },
+  { id: 'violencia',        label: 'Violencia',         color: '#b91c1c', keywords: BUILT_IN.violencia },
+  { id: 'drogas',           label: 'Drogas',            color: '#7c3aed', keywords: BUILT_IN.drogas },
+  { id: 'apuestas',         label: 'Apuestas',          color: '#d97706', keywords: BUILT_IN.apuestas },
+  { id: 'odio',             label: 'Discurso de odio',  color: '#475569', keywords: BUILT_IN.odio },
 ]
 
 const customWords  = reactive({})
 const enabledCats  = reactive({})
-const expandedCats = reactive({})
 const newWord      = reactive({})
+
 async function loadConfig() {
   const { data: org } = await supabase.from('organizations').select('filter_config').eq('id', activeOrgId.value).single()
   const config = org?.filter_config || {}
@@ -441,20 +430,11 @@ async function saveFilters() {
   if (!activeOrgId.value) return
   saving.value = true
   savedMsg.value = ''
-
   const config = {}
   categories.forEach(cat => {
-    config[cat.id] = {
-      enabled: enabledCats[cat.id] !== false,
-      custom:  customWords[cat.id] || [],
-    }
+    config[cat.id] = { enabled: enabledCats[cat.id] !== false, custom: customWords[cat.id] || [] }
   })
-
-  const { error } = await supabase
-    .from('organizations')
-    .update({ filter_config: config })
-    .eq('id', activeOrgId.value)
-
+  const { error } = await supabase.from('organizations').update({ filter_config: config }).eq('id', activeOrgId.value)
   saving.value = false
   savedMsg.value = error ? `Error: ${error.message}` : 'Configuración guardada'
   setTimeout(() => savedMsg.value = '', 3000)
