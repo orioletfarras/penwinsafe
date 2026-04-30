@@ -35,8 +35,7 @@
     "publish": {
       "provider": "github",
       "owner": "orioletfarras",
-      "repo": "penwinsafe-releases",
-      "private": true
+      "repo": "penwinsafe"
     },
     "win": {
       "target": "nsis",
