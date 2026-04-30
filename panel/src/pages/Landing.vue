@@ -310,7 +310,7 @@ function scrollTo(id) {
 const ua = navigator.userAgent.toLowerCase()
 const detectedOS = ua.includes('win') ? 'win' : ua.includes('mac') ? 'mac' : 'win'
 
-const appVersion = 'v1.0.3'
+const appVersion = 'v1.0.4'
 const RELEASES_BASE = 'https://github.com/orioletfarras/penwinsafe/releases/latest/download'
 
 const downloads = {
