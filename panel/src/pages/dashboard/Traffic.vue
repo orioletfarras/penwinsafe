@@ -7,11 +7,14 @@
         <h1 class="text-lg font-bold text-gray-900 tracking-tight">Tráfico de Red</h1>
         <p class="text-xs text-gray-400 mt-0.5">Consumo real · últimas 24 h</p>
       </div>
-      <button @click="load" :disabled="loading"
-        class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
-        <ArrowPathIcon class="w-3.5 h-3.5" :class="loading ? 'animate-spin' : ''" />
-        Actualizar
-      </button>
+      <div class="flex items-center gap-2">
+        <button @click="debugDpi" class="text-xs px-2 py-1 text-gray-300 hover:text-gray-500">DPI</button>
+        <button @click="load" :disabled="loading"
+          class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+          <ArrowPathIcon class="w-3.5 h-3.5" :class="loading ? 'animate-spin' : ''" />
+          Actualizar
+        </button>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -89,17 +92,17 @@
       <!-- Apps table (when available from v2 API) -->
       <div v-if="data.apps && data.apps.length" class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div class="grid items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wide"
-          style="grid-template-columns:2fr 1fr 1fr 1fr auto">
+          style="grid-template-columns:2fr 1fr 1fr 1.5fr 40px">
           <span>Aplicación</span>
-          <span class="text-right">Total</span>
           <span class="text-right text-sky-400">Descarga</span>
           <span class="text-right text-violet-400">Subida</span>
-          <span class="text-right">Clientes</span>
+          <span class="text-right">Top cliente</span>
+          <span class="text-center">Nº</span>
         </div>
         <div class="divide-y divide-gray-50">
           <div v-for="app in data.apps" :key="app.name"
             class="grid items-center px-4 py-3 hover:bg-gray-50/60 transition-colors"
-            style="grid-template-columns:2fr 1fr 1fr 1fr auto">
+            style="grid-template-columns:2fr 1fr 1fr 1.5fr 40px">
             <div class="flex items-center gap-2.5 min-w-0">
               <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                 :style="`background:#${BRAND_ICONS[app.name]?.hex || 'f3f4f6'}18`">
@@ -107,7 +110,7 @@
                   :fill="`#${BRAND_ICONS[app.name].hex === '000000' ? '374151' : BRAND_ICONS[app.name].hex}`">
                   <path :d="BRAND_ICONS[app.name].path" />
                 </svg>
-                <span v-else class="text-xs">🌐</span>
+                <span v-else class="text-[11px] text-gray-400 font-bold">{{app.name.slice(0,2).toUpperCase()}}</span>
               </div>
               <div class="min-w-0">
                 <p class="text-xs font-bold text-gray-800 truncate">{{ app.name }}</p>
@@ -118,12 +121,12 @@
               </div>
             </div>
             <div class="text-right">
-              <p class="text-xs font-bold text-gray-700">{{ fmt(app.total_bytes) }}</p>
-              <p class="text-[10px] text-gray-400">{{ pctApp(app.total_bytes) }}%</p>
+              <p class="text-xs font-semibold text-sky-500">{{ fmt(app.rx_bytes) }}</p>
+              <p class="text-[10px] text-gray-400">{{ fmt(app.total_bytes) }}</p>
             </div>
-            <p class="text-xs font-semibold text-sky-500 text-right">{{ fmt(app.rx_bytes) }}</p>
             <p class="text-xs font-semibold text-violet-500 text-right">{{ fmt(app.tx_bytes) }}</p>
-            <p class="text-xs font-bold text-gray-400 text-right">{{ app.clients || '—' }}</p>
+            <p class="text-[11px] text-gray-500 text-right truncate pl-2">{{ app.top_client || '—' }}</p>
+            <p class="text-xs font-bold text-gray-400 text-center">{{ app.clients || '—' }}</p>
           </div>
         </div>
       </div>
@@ -328,6 +331,21 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function debugDpi() {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unifi-api`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: 'get_traffic', org_id: selectedOrgId.value, debug: true }),
+    }
+  )
+  const r = await res.json()
+  console.log('DPI debug:', JSON.stringify(r, null, 2))
+  alert(JSON.stringify(r, null, 2))
 }
 
 onMounted(load)

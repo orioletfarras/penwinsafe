@@ -21,8 +21,7 @@ const routes = [
       { path: 'custom-alerts',  name: 'custom-alerts',  component: () => import('../pages/dashboard/CustomAlerts.vue') },
       { path: 'kiosk',          name: 'kiosk',          component: () => import('../pages/dashboard/KioskSchedule.vue') },
       { path: 'superconfig',    name: 'superconfig',    component: () => import('../pages/dashboard/SuperConfig.vue'), meta: { requiresSuperAdmin: true } },
-      { path: 'cloudflare',     name: 'cloudflare',     component: () => import('../pages/dashboard/CloudflareConfig.vue') },
-      { path: 'traffic',        name: 'traffic',        component: () => import('../pages/dashboard/Traffic.vue') },
+      { path: 'dnsescolar',     name: 'dnsescolar',     component: () => import('../pages/dashboard/CloudflareConfig.vue') },
       { path: 'devices/:id',   name: 'device-detail',  component: () => import('../pages/dashboard/DeviceDetail.vue') },
     ]
   },

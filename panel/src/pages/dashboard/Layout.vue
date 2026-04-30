@@ -546,8 +546,7 @@ const mgmtNav = computed(() => [
   { to: '/dashboard/audit',         label: 'Registro',          icon: ClipboardDocumentListIcon },
   { to: '/dashboard/settings',      label: 'Configuración',     icon: Cog6ToothIcon },
   ...(isSuperAdmin.value ? [{ to: '/dashboard/superconfig', label: 'SuperConfig', icon: WrenchScrewdriverIcon }] : []),
-  ...(cfActive.value ? [{ to: '/dashboard/cloudflare', label: 'DNS Escolar', icon: CloudIcon }] : []),
-  { to: '/dashboard/traffic', label: 'Tráfico', icon: ChartBarIcon },
+  ...(cfActive.value ? [{ to: '/dashboard/dnsescolar', label: 'DNS Escolar', icon: CloudIcon }] : []),
 ])
 
 const pageMap = {
@@ -562,8 +561,7 @@ const pageMap = {
   '/dashboard/users':         { title: 'Usuarios',          desc: 'Administradores con acceso al panel' },
   '/dashboard/settings':    { title: 'Configuración',  desc: 'Datos del centro y preferencias de la cuenta' },
   '/dashboard/superconfig': { title: 'SuperConfig',    desc: 'Gestión global de centros y configuración avanzada' },
-  '/dashboard/cloudflare':  { title: 'DNS Escolar', desc: 'Filtrado DNS con tres zonas de protección por perfil' },
-  '/dashboard/traffic':     { title: 'Tráfico',     desc: 'Consumo real de ancho de banda por aplicación y alumno' },
+  '/dashboard/dnsescolar':  { title: 'DNS Escolar', desc: 'Filtrado DNS · tráfico de red por aplicación · últimas 24 h' },
 }
 const currentPageTitle = computed(() => pageMap[route.path]?.title || 'Panel')
 const currentPageDesc  = computed(() => pageMap[route.path]?.desc  || '')

@@ -173,8 +173,8 @@
     /* ── Browser UI ── */
     #browser-ui {
       display: none;
-      flex-direction: column;
-      height: 100vh;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
     }
 
     #toolbar {
@@ -185,7 +185,7 @@
       background: #ffffff;
       border-bottom: 1px solid #e5e7eb;
       -webkit-app-region: drag;
-      min-height: 44px;
+      box-sizing: border-box;
     }
 
     #toolbar button,
@@ -253,16 +253,8 @@
       background: #16a34a;
     }
 
-    #loading-bar {
-      height: 2px;
-      background: #006fff;
-      width: 0%;
-      transition: width 0.2s;
-    }
-
-    #loading-bar.active {
-      animation: loading 1.5s ease-in-out infinite;
-    }
+    #loading-bar { background: #006fff; width: 0%; transition: width 0.2s; }
+    #loading-bar.active { animation: loading 1.5s ease-in-out infinite; }
 
     @keyframes loading {
       0%   { width: 0%; opacity: 1; }
@@ -270,8 +262,97 @@
       100% { width: 100%; opacity: 0; }
     }
 
-    #webview-container { flex: 1; position: relative; }
-    webview { width: 100%; height: 100%; border: none; }
+    /* Absolute layout — no flex height calculations */
+    #tab-bar      { position: absolute; top: 0;    left: 0; right: 0; height: 34px; z-index: 1; }
+    #toolbar      { position: absolute; top: 34px; left: 0; right: 0; height: 44px; z-index: 1; }
+    #loading-bar  { position: absolute; top: 78px; left: 0; right: 0; height: 2px;  z-index: 1; }
+    #webview-container { position: absolute; top: 80px; left: 0; right: 0; bottom: 0; overflow: hidden; }
+    webview { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: none; }
+
+    /* ── Tab bar ── */
+    #tab-bar {
+      display: flex;
+      align-items: center;
+      background: #f1f3f5;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0 4px;
+      height: 34px;
+      -webkit-app-region: drag;
+      overflow: hidden;
+    }
+
+    #tabs-scroll {
+      display: flex;
+      align-items: flex-end;
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+      gap: 2px;
+      height: 100%;
+      padding: 4px 0 0;
+      scrollbar-width: none;
+    }
+    #tabs-scroll::-webkit-scrollbar { display: none; }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      height: 26px;
+      padding: 0 6px 0 10px;
+      border-radius: 7px 7px 0 0;
+      font-size: 11.5px;
+      color: #6b7280;
+      cursor: pointer;
+      flex-shrink: 0;
+      max-width: 180px;
+      min-width: 80px;
+      user-select: none;
+      transition: background 0.1s, color 0.1s;
+      -webkit-app-region: no-drag;
+      background: transparent;
+    }
+    .tab:hover { background: #e5e7eb; color: #374151; }
+    .tab.active {
+      background: #ffffff;
+      color: #111827;
+      box-shadow: inset 0 2px 0 #006fff;
+      font-weight: 500;
+    }
+
+    .tab-title {
+      flex: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .tab-close {
+      width: 16px; height: 16px;
+      border-radius: 4px;
+      border: none; background: transparent; cursor: pointer;
+      color: #9ca3af; font-size: 14px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; padding: 0;
+      transition: background 0.1s, color 0.1s;
+      -webkit-app-region: no-drag;
+      font-family: inherit;
+    }
+    .tab-close:hover { background: #fee2e2; color: #dc2626; }
+
+    #btn-new-tab {
+      width: 26px; height: 26px; flex-shrink: 0;
+      border: none; background: transparent; cursor: pointer;
+      color: #6b7280; font-size: 18px; line-height: 1;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s;
+      -webkit-app-region: no-drag;
+      margin-left: 4px;
+      font-family: inherit;
+    }
+    #btn-new-tab:hover { background: #e5e7eb; color: #374151; }
+    #btn-new-tab:disabled { opacity: 0.3; cursor: default; }
   </style>
 </head>
 <body>
@@ -318,6 +399,10 @@
 
   <!-- Browser UI (shown after activation) -->
   <div id="browser-ui">
+    <div id="tab-bar">
+      <div id="tabs-scroll"></div>
+      <button id="btn-new-tab" title="Nueva pestaña (⌘T)">+</button>
+    </div>
     <div id="toolbar">
       <div class="shield-badge" title="Navegación segura activa — PenwinSafe Filter">
         <span class="shield-dot"></span>
@@ -329,9 +414,7 @@
       <input type="text" id="address-bar" placeholder="Introduce una dirección web..." spellcheck="false">
     </div>
     <div id="loading-bar"></div>
-    <div id="webview-container">
-      <webview id="wv" src="about:blank" allowpopups="false"></webview>
-    </div>
+    <div id="webview-container"></div>
   </div>
 
   <script>
@@ -348,10 +431,10 @@
 
     async function showBrowser() {
       document.getElementById('activation-screen').style.display = 'none'
-      document.getElementById('browser-ui').style.display = 'flex'
-      await refreshBlocklist()
+      document.getElementById('browser-ui').style.display = 'block'
       initBrowser()
       initRtc()
+      refreshBlocklist()
     }
 
     // ── WebRTC live view ─────────────────────────────────────
@@ -818,12 +901,6 @@
       return null
     }
 
-    function isBlockedQuery(query) {
-      if (!query) return false
-      const q = query.toLowerCase()
-      return activeBlocklist.some(kw => q.includes(kw))
-    }
-
     function blockedPageURL(term, type) {
       const params = new URLSearchParams({ term: term || '', type: type || 'keyword' })
       return `blocked.html?${params.toString()}`
@@ -835,114 +912,168 @@
       return blockedPageURL(domain, 'dns')
     }
 
-    let currentTitle = ''
+    // ── Tab management (one webview per tab) ─────────────────
+    const MAX_TABS = 8
+    let tabCounter = 0
+    let tabs = []
+    let activeTabId = null
 
-    function initBrowser() {
-      const wv = document.getElementById('wv')
-      const addressBar = document.getElementById('address-bar')
-      const btnBack = document.getElementById('btn-back')
-      const btnForward = document.getElementById('btn-forward')
-      const btnReload = document.getElementById('btn-reload')
-      const loadingBar = document.getElementById('loading-bar')
+    function activeTab() { return tabs.find(t => t.id === activeTabId) }
 
-      function navigate(url) {
-        const normalized = normalizeUrl(url)
-        const scheme = normalized.split(':')[0] + ':'
-        if (BLOCKED_SCHEMES.includes(scheme.toLowerCase())) return
-        const query = extractSearchQuery(normalized)
-        if (isBlockedQuery(query)) {
-          window.penwinsafe.logBlocked(normalized, 'keyword_filter', query)
-          wv.src = blockedPageURL(query, 'keyword')
-          return
+    function renderTabs() {
+      const scroll = document.getElementById('tabs-scroll')
+      const btnNew = document.getElementById('btn-new-tab')
+      scroll.innerHTML = ''
+      for (const tab of tabs) {
+        const el = document.createElement('div')
+        el.className = 'tab' + (tab.id === activeTabId ? ' active' : '')
+        const title = document.createElement('span')
+        title.className = 'tab-title'
+        title.textContent = tab.title || 'Nueva pestaña'
+        el.appendChild(title)
+        if (tabs.length > 1) {
+          const closeBtn = document.createElement('button')
+          closeBtn.className = 'tab-close'
+          closeBtn.innerHTML = '&times;'
+          closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeTab(tab.id) })
+          el.appendChild(closeBtn)
         }
-        wv.src = normalized
+        el.addEventListener('click', () => switchTab(tab.id))
+        scroll.appendChild(el)
+        if (tab.id === activeTabId)
+          requestAnimationFrame(() => el.scrollIntoView({ block: 'nearest', inline: 'nearest' }))
       }
+      btnNew.disabled = tabs.length >= MAX_TABS
+    }
 
-      addressBar.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') navigate(addressBar.value)
-      })
+    function openTab(url) {
+      if (tabs.length >= MAX_TABS) return
+      const id = ++tabCounter
+      const wv = document.createElement('webview')
+      wv.setAttribute('allowpopups', 'false')
+      wv.style.visibility = 'hidden'
+      wv.style.pointerEvents = 'none'
+      document.getElementById('webview-container').appendChild(wv)
+      const tab = { id, wv, url: '', title: 'Nueva pestaña', loading: false }
+      tabs.push(tab)
+      attachWebviewListeners(tab)
+      switchTab(id)
+      navigateTab(tab, url || HOME)
+    }
 
-      btnBack.addEventListener('click', () => wv.canGoBack() && wv.goBack())
-      btnForward.addEventListener('click', () => wv.canGoForward() && wv.goForward())
-      btnReload.addEventListener('click', () => wv.reload())
+    function closeTab(id) {
+      if (tabs.length === 1) return
+      const idx = tabs.findIndex(t => t.id === id)
+      tabs[idx].wv.remove()
+      tabs.splice(idx, 1)
+      if (activeTabId === id) switchTab(tabs[Math.min(idx, tabs.length - 1)].id)
+      else renderTabs()
+    }
+
+    function switchTab(id) {
+      activeTabId = id
+      const tab = tabs.find(t => t.id === id)
+      for (const t of tabs) {
+        t.wv.style.visibility  = t.id === id ? 'visible' : 'hidden'
+        t.wv.style.pointerEvents = t.id === id ? 'auto' : 'none'
+      }
+      const addressBar = document.getElementById('address-bar')
+      addressBar.value = (tab.url && !tab.url.startsWith('blocked.html') && tab.url !== 'about:blank') ? tab.url : ''
+      try { document.getElementById('btn-back').disabled = !tab.wv.canGoBack(); document.getElementById('btn-forward').disabled = !tab.wv.canGoForward() } catch {}
+      document.title = tab.title ? `${tab.title} — PenwinSafe` : 'PenwinSafe'
+      const lb = document.getElementById('loading-bar')
+      tab.loading ? lb.classList.add('active') : lb.classList.remove('active')
+      renderTabs()
+    }
+
+    function navigateTab(tab, url) {
+      const normalized = normalizeUrl(url)
+      const scheme = normalized.split(':')[0] + ':'
+      if (BLOCKED_SCHEMES.includes(scheme.toLowerCase())) return
+      const query = extractSearchQuery(normalized)
+      if (isBlockedQuery(query)) {
+        window.penwinsafe.logBlocked(normalized, 'keyword_filter', query)
+        tab.wv.src = blockedPageURL(query, 'keyword')
+        return
+      }
+      tab.url = normalized
+      tab.wv.src = normalized
+    }
+
+    function attachWebviewListeners(tab) {
+      const wv = tab.wv
+      const lb = () => document.getElementById('loading-bar')
 
       wv.addEventListener('did-navigate', (e) => {
-        addressBar.value = e.url
-        btnBack.disabled = !wv.canGoBack()
-        btnForward.disabled = !wv.canGoForward()
-
+        tab.url = e.url
+        if (tab.id !== activeTabId) return
+        document.getElementById('address-bar').value = e.url
+        try { document.getElementById('btn-back').disabled = !wv.canGoBack(); document.getElementById('btn-forward').disabled = !wv.canGoForward() } catch {}
         const query = extractSearchQuery(e.url)
-        if (isBlockedQuery(query)) {
-          window.penwinsafe.logBlocked(e.url, 'keyword_filter', query)
-          wv.src = blockedPageURL(query, 'keyword')
-          return
-        }
-
-        // Log search query
+        if (isBlockedQuery(query)) { window.penwinsafe.logBlocked(e.url, 'keyword_filter', query); wv.src = blockedPageURL(query, 'keyword'); return }
         if (query) window.penwinsafe.logSearch(query, e.url)
-
-        // Log URL visit
-        window.penwinsafe.logUrl(e.url, currentTitle)
+        window.penwinsafe.logUrl(e.url, tab.title)
       })
 
       wv.addEventListener('did-navigate-in-page', (e) => {
-        addressBar.value = e.url
+        tab.url = e.url
+        if (tab.id !== activeTabId) return
+        document.getElementById('address-bar').value = e.url
         const query = extractSearchQuery(e.url)
-        if (isBlockedQuery(query)) {
-          window.penwinsafe.logBlocked(e.url, 'keyword_filter', query)
-          wv.src = blockedPageURL(query, 'keyword')
-          return
-        }
+        if (isBlockedQuery(query)) { window.penwinsafe.logBlocked(e.url, 'keyword_filter', query); wv.src = blockedPageURL(query, 'keyword'); return }
         if (query) window.penwinsafe.logSearch(query, e.url)
       })
 
       wv.addEventListener('page-title-updated', (e) => {
-        currentTitle = e.title
-        document.title = `${e.title} — PenwinSafe`
+        tab.title = e.title
+        if (tab.id === activeTabId) document.title = `${e.title} — PenwinSafe`
+        renderTabs()
       })
 
       wv.addEventListener('did-start-loading', () => {
-        loadingBar.classList.add('active')
+        tab.loading = true
+        if (tab.id === activeTabId) lb().classList.add('active')
       })
 
       wv.addEventListener('did-stop-loading', () => {
-        loadingBar.classList.remove('active')
-        loadingBar.style.width = '0%'
+        tab.loading = false
+        if (tab.id === activeTabId) { lb().classList.remove('active'); lb().style.width = '0%' }
       })
 
-      // DNS-blocked or unreachable sites → show custom blocked page
       wv.addEventListener('did-fail-load', (e) => {
         const { errorCode, validatedURL } = e
-        // -3 = navigation aborted (normal), 0 = success, ignore those
         if (errorCode === -3 || errorCode === 0) return
-        // -105 = ERR_NAME_NOT_RESOLVED (DNS block / NXDOMAIN)
-        // -102 = ERR_CONNECTION_REFUSED, -101 = ERR_CONNECTION_RESET
-        const dnsBlocked = [
-          -105, // ERR_NAME_NOT_RESOLVED
-          -106, // ERR_INTERNET_DISCONNECTED — skip, legit
-          -21,  // ERR_NETWORK_ACCESS_DENIED
-        ]
-        if (errorCode === -105 || errorCode === -21) {
-          window.penwinsafe.logBlocked(validatedURL, 'dns_filter', null)
-          wv.src = domainBlockedURL(validatedURL)
-        }
+        if (errorCode === -105 || errorCode === -21) { window.penwinsafe.logBlocked(validatedURL, 'dns_filter', null); wv.src = domainBlockedURL(validatedURL) }
       })
 
       wv.addEventListener('will-navigate', (e) => {
         const scheme = (e.url || '').split(':')[0].toLowerCase() + ':'
-        if (BLOCKED_SCHEMES.includes(scheme)) {
-          e.preventDefault()
-          return
-        }
+        if (BLOCKED_SCHEMES.includes(scheme)) { e.preventDefault(); return }
         const query = extractSearchQuery(e.url)
-        if (isBlockedQuery(query)) {
-          e.preventDefault()
-          window.penwinsafe.logBlocked(e.url, 'keyword_filter', query)
-          wv.src = blockedPageURL(query, 'keyword')
-        }
+        if (isBlockedQuery(query)) { e.preventDefault(); window.penwinsafe.logBlocked(e.url, 'keyword_filter', query); wv.src = blockedPageURL(query, 'keyword') }
       })
 
-      navigate(HOME)
+      wv.addEventListener('new-window', (e) => { if (e.url && e.url !== 'about:blank') openTab(e.url) })
+    }
+
+    function initBrowser() {
+      const addressBar = document.getElementById('address-bar')
+      addressBar.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { const tab = activeTab(); if (tab) navigateTab(tab, addressBar.value) }
+      })
+      document.getElementById('btn-back').addEventListener('click', () => { const t = activeTab(); try { if (t?.wv.canGoBack()) t.wv.goBack() } catch {} })
+      document.getElementById('btn-forward').addEventListener('click', () => { const t = activeTab(); try { if (t?.wv.canGoForward()) t.wv.goForward() } catch {} })
+      document.getElementById('btn-reload').addEventListener('click', () => activeTab()?.wv.reload())
+      document.getElementById('btn-new-tab').addEventListener('click', () => openTab())
+      document.addEventListener('keydown', (e) => {
+        if (e.metaKey || e.ctrlKey) {
+          if (e.key === 't') { e.preventDefault(); openTab() }
+          if (e.key === 'w') { e.preventDefault(); closeTab(activeTabId) }
+          const n = parseInt(e.key)
+          if (n >= 1 && n <= 8 && tabs[n - 1]) { e.preventDefault(); switchTab(tabs[n - 1].id) }
+        }
+      })
+      openTab(HOME)
     }
 
     // ── Activation logic ────────────────────────────────────

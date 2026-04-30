@@ -1114,36 +1114,249 @@ serve(async (req) => {
       return json({ ok: true, ips_updated: ips.length })
     }
 
+    // ── get_networks: list wired networks with client counts + stored zone map ──
+    if (action === 'get_networks') {
+      const [networksRes, staRes] = await Promise.all([
+        client.get(`/proxy/network/api/s/${site}/rest/networkconf`),
+        client.get(`/proxy/network/api/s/${site}/stat/sta`).catch(() => ({ data: [] })),
+      ])
+
+      const clients: any[] = staRes.data || []
+      const clientsByNet: Record<string, number> = {}
+      for (const c of clients) {
+        const key = c.network_id || c.networkconf_id || ''
+        if (key) clientsByNet[key] = (clientsByNet[key] || 0) + 1
+      }
+
+      const networks = (networksRes.data || [])
+        .filter((n: any) => n.purpose !== 'wan' && n.purpose !== 'wan2' && n.enabled !== false)
+        .map((n: any) => ({
+          id:           n._id,
+          name:         n.name,
+          vlan:         n.vlan ?? null,
+          purpose:      n.purpose,
+          subnet:       n.ip_subnet ?? null,
+          dhcp_enabled: !!n.dhcpd_enabled,
+          dhcp_dns:     n.dhcpd_dns_1 ?? null,
+          client_count: clientsByNet[n._id] || 0,
+        }))
+
+      // Load stored zone map
+      const { data: uCfg } = await supabase
+        .from('unifi_configs').select('network_zone_map').eq('org_id', org_id).single()
+      let zoneMap: Record<string, string> = (uCfg?.network_zone_map as Record<string, string>) || {}
+
+      // Auto-detect from UniFi DNS filter profiles (if zone_map not yet saved)
+      if (!Object.keys(zoneMap).length) {
+        try {
+          const { data: cfCfg } = await supabase
+            .from('cloudflare_configs')
+            .select('zone_students_doh, zone_teachers_doh, zone_admin_doh, zone_students_ip, zone_teachers_ip, zone_admin_ip')
+            .eq('org_id', org_id).single()
+
+          // Build lookup: DoH subdomain or IP → zone key
+          const dohToZone: Record<string, string> = {}
+          if (cfCfg?.zone_students_doh) dohToZone[cfCfg.zone_students_doh] = 'students'
+          if (cfCfg?.zone_teachers_doh) dohToZone[cfCfg.zone_teachers_doh] = 'teachers'
+          if (cfCfg?.zone_admin_doh)    dohToZone[cfCfg.zone_admin_doh]    = 'admin'
+          const ipToZone: Record<string, string> = {}
+          for (const ip of ((cfCfg?.zone_students_ip as string[]) || [])) ipToZone[ip] = 'students'
+          for (const ip of ((cfCfg?.zone_teachers_ip as string[]) || [])) ipToZone[ip] = 'teachers'
+          for (const ip of ((cfCfg?.zone_admin_ip    as string[]) || [])) ipToZone[ip] = 'admin'
+
+          const netById: Record<string, boolean> = {}
+          for (const n of networks) netById[n.id] = true
+          const netByName: Record<string, string> = {}
+          for (const n of networks) netByName[n.name.toLowerCase()] = n.id
+
+          // 1. Try UniFi DNS filter profiles API (v2)
+          const profiles = await client.probe(`/proxy/network/v2/api/site/${site}/dnsfilter/profiles`)
+          const profileList: any[] = Array.isArray(profiles) ? profiles
+            : (profiles?.data || profiles?.result || [])
+
+          for (const p of profileList) {
+            // Match profile to zone via DoH or IP
+            let matchedZone: string | null = null
+            const dohRaw: string = p.doh || p.doh_url || p.cloudflare_doh || p.resolver_url || ''
+            for (const [sub, z] of Object.entries(dohToZone)) {
+              if (dohRaw.includes(sub)) { matchedZone = z; break }
+            }
+            // Fallback: match by DHCP DNS IP in profile
+            if (!matchedZone) {
+              const dnsIp: string = p.dns_ip || p.primary_dns || ''
+              if (dnsIp && ipToZone[dnsIp]) matchedZone = ipToZone[dnsIp]
+            }
+            if (!matchedZone) continue
+
+            // Collect network IDs assigned to this profile
+            const profileNets: any[] = p.networks || p.network_ids || p.origins || p.sources || []
+            for (const pn of profileNets) {
+              const netId = typeof pn === 'string'
+                ? (netById[pn] ? pn : netByName[pn.toLowerCase()] || '')
+                : (pn._id || pn.id || '')
+              if (netId && netById[netId]) zoneMap[netId] = matchedZone
+            }
+          }
+
+          // 2. Fallback: infer from DHCP DNS of each network
+          if (!Object.keys(zoneMap).length) {
+            for (const net of networks) {
+              if (net.dhcp_dns && ipToZone[net.dhcp_dns]) {
+                zoneMap[net.id] = ipToZone[net.dhcp_dns]
+              }
+            }
+          }
+
+          // Persist inferred map so it loads fast next time
+          if (Object.keys(zoneMap).length) {
+            await supabase.from('unifi_configs')
+              .update({ network_zone_map: zoneMap, updated_at: new Date().toISOString() })
+              .eq('org_id', org_id)
+          }
+        } catch { /* auto-detect failed — user assigns manually */ }
+      }
+
+      return json({ ok: true, networks, zone_map: zoneMap })
+    }
+
+    // ── apply_network_dns: set DHCP DNS on networks + persist zone map ───────
+    if (action === 'apply_network_dns') {
+      const zoneMap: Record<string, string> = body.zone_map || {}
+
+      await supabase.from('unifi_configs')
+        .update({ network_zone_map: zoneMap, updated_at: new Date().toISOString() })
+        .eq('org_id', org_id)
+
+      const { data: cfCfg } = await supabase
+        .from('cloudflare_configs')
+        .select('zone_students_ip, zone_teachers_ip, zone_admin_ip')
+        .eq('org_id', org_id).single()
+
+      const zoneIps: Record<string, string> = {
+        students: (cfCfg?.zone_students_ip as string[])?.[0] || '',
+        teachers: (cfCfg?.zone_teachers_ip as string[])?.[0] || '',
+        admin:    (cfCfg?.zone_admin_ip    as string[])?.[0] || '',
+      }
+
+      const networksRes = await client.get(`/proxy/network/api/s/${site}/rest/networkconf`)
+      const allNets: any[] = networksRes.data || []
+
+      const checks: string[] = []
+      const errors: string[] = []
+
+      for (const [netId, zone] of Object.entries(zoneMap)) {
+        const net = allNets.find((n: any) => n._id === netId)
+        if (!net || !net.dhcpd_enabled) continue
+        const ip = zoneIps[zone]
+        if (!ip) continue
+        try {
+          await client.put(`/proxy/network/api/s/${site}/rest/networkconf/${netId}`, {
+            ...net,
+            dhcpd_dns_enabled: true,
+            dhcpd_dns_1: ip,
+          })
+          checks.push(`${net.name} → ${ip}`)
+        } catch (e: any) { errors.push(`${net.name}: ${e.message}`) }
+      }
+
+      return json({ ok: errors.length === 0, checks, errors })
+    }
+
     // ── get_traffic: DPI stats + hourly chart ────────────────────────────
     if (action === 'get_traffic') {
-      const { data: ucfg } = await supabase
-        .from('unifi_configs')
-        .select('controller_url, username, password, site_id')
-        .eq('org_id', org_id).single()
-      if (!ucfg?.controller_url) throw new Error('UniFi no configurado')
-
-      const client = new UnifiClient(ucfg.controller_url)
-      await client.login(ucfg.username, ucfg.password)
-      const site = ucfg.site_id || 'default'
+      // Uses the outer `client` and `site` (already authenticated with session cache)
       const base = `/proxy/network/api/s/${site}`
+      const base2 = `/proxy/network/v2/api/site/${site}`
 
-      // Known DPI app IDs → names
+      // Known DPI app IDs → names (matches UniFi Activity page categories)
       const DPI_NAMES: Record<number, string> = {
         0: 'Otros', 1: 'HTTP', 2: 'SSL/TLS', 3: 'HTTPS', 4: 'QUIC',
-        5: 'YouTube', 6: 'Web File Transfer', 7: 'Instagram', 8: 'Streaming',
-        14: 'Facebook', 15: 'WhatsApp', 17: 'Spotify', 20: 'Netflix',
-        21: 'Twitch', 23: 'Steam', 25: 'iCloud', 28: 'Apple Services',
-        29: 'Windows Update', 34: 'Facebook', 36: 'Twitter / X', 38: 'Snapchat',
-        47: 'TikTok', 50: 'Discord', 52: 'Zoom', 55: 'Microsoft Teams',
-        60: 'Google', 68: 'Windows Update', 75: 'Microsoft Office',
-        89: 'Google Drive', 90: 'Dropbox', 95: 'SharePoint', 107: 'Roblox',
-        110: 'Amazon', 115: 'Cloudflare', 121: 'Telegram', 125: 'Kahoot',
-        130: 'Canva', 135: 'Duolingo', 140: 'Epic Games', 145: 'EA / Origin',
-        150: 'PlayStation', 155: 'Xbox', 160: 'Disney+', 165: 'Prime Video',
+        5: 'YouTube', 6: 'Transferencia Web', 7: 'Instagram', 8: 'Streaming',
+        9: 'BitTorrent', 10: 'eDonkey', 11: 'Gnutella', 12: 'Kazaa',
+        13: 'SoulSeek', 14: 'Facebook', 15: 'WhatsApp', 16: 'WeChat',
+        17: 'Spotify', 18: 'Pandora', 19: 'Deezer', 20: 'Netflix',
+        21: 'Twitch', 22: 'Hulu', 23: 'Steam', 24: 'Xbox Live',
+        25: 'iCloud', 26: 'DNS', 27: 'NTP', 28: 'Apple Services',
+        29: 'Windows Update', 30: 'Skype', 31: 'Facetime', 32: 'Viber',
+        33: 'Line', 34: 'Facebook Messenger', 35: 'Snapchat', 36: 'Twitter / X',
+        37: 'Pinterest', 38: 'Tumblr', 39: 'Reddit', 40: 'LinkedIn',
+        41: 'Google Services', 42: 'Google Maps', 43: 'Google Play',
+        44: 'Gmail', 45: 'YouTube Music', 46: 'Google Meet', 47: 'TikTok',
+        48: 'Amazon Video', 49: 'Twilio', 50: 'Discord', 51: 'Slack',
+        52: 'Zoom', 53: 'Webex', 54: 'GoToMeeting', 55: 'Microsoft Teams',
+        56: 'Office 365', 57: 'OneDrive', 58: 'SharePoint', 59: 'Azure',
+        60: 'Google', 61: 'Bing', 62: 'Yahoo', 63: 'DuckDuckGo',
+        64: 'Cloudflare DNS', 65: 'OpenDNS', 66: 'Apple TV', 67: 'Roku',
+        68: 'Windows Update', 69: 'Apple Update', 70: 'Android Update',
+        71: 'Playstation Network', 72: 'Nintendo', 73: 'EA Games',
+        74: 'Riot Games', 75: 'Microsoft Office', 76: 'Dropbox',
+        77: 'Box', 78: 'Google Drive', 79: 'iCloud Drive', 80: 'Mega',
+        81: 'MediaFire', 82: 'WeTransfer', 83: 'Wetransfer', 84: 'SMTP',
+        85: 'IMAP/POP3', 86: 'VoIP', 87: 'SIP', 88: 'RTP',
+        89: 'Google Drive', 90: 'Dropbox', 91: 'GitHub', 92: 'GitLab',
+        93: 'Jira', 94: 'Confluence', 95: 'SharePoint', 96: 'Salesforce',
+        97: 'Zendesk', 98: 'HubSpot', 99: 'Shopify', 100: 'WooCommerce',
+        101: 'Stripe', 102: 'PayPal', 103: 'Venmo', 104: 'Cash App',
+        105: 'Coinbase', 106: 'Binance', 107: 'Roblox', 108: 'Minecraft',
+        109: 'Fortnite', 110: 'Amazon', 111: 'eBay', 112: 'AliExpress',
+        113: 'Alibaba', 114: 'Etsy', 115: 'Cloudflare', 116: 'Fastly',
+        117: 'Akamai', 118: 'AWS', 119: 'Google Cloud', 120: 'Azure',
+        121: 'Telegram', 122: 'Signal', 123: 'Wickr', 124: 'Threema',
+        125: 'Kahoot', 126: 'Quizlet', 127: 'Duolingo', 128: 'Khan Academy',
+        129: 'Coursera', 130: 'Canva', 131: 'Adobe Creative', 132: 'Figma',
+        133: 'Notion', 134: 'Airtable', 135: 'Trello', 136: 'Asana',
+        137: 'Monday.com', 138: 'ClickUp', 139: 'Basecamp', 140: 'Epic Games',
+        141: 'Ubisoft', 142: 'Activision', 143: 'Blizzard', 144: 'Valve',
+        145: 'EA / Origin', 146: 'GOG', 147: 'Humble Bundle', 148: 'itch.io',
+        149: 'Crunchyroll', 150: 'PlayStation', 151: 'Discovery+',
+        152: 'Peacock', 153: 'Paramount+', 154: 'HBO Max', 155: 'Xbox',
+        156: 'Apple Music', 157: 'Tidal', 158: 'SoundCloud', 159: 'Bandcamp',
+        160: 'Disney+', 161: 'ESPN+', 162: 'FuboTV', 163: 'Sling TV',
+        164: 'YouTube TV', 165: 'Prime Video', 166: 'Audible', 167: 'Kindle',
+        168: 'Scribd', 169: 'Issuu', 170: 'Academia.edu',
+        171: 'Google Photos', 172: 'iCloud Photos', 173: 'OneDrive Photos',
+        174: 'Google Workspace', 175: 'Microsoft 365', 176: 'Atlassian',
+        177: 'Trello', 178: 'Asana', 179: 'Slack',
+        180: 'Zoom Video', 181: 'Google Meet', 182: 'Microsoft Teams Video',
+        183: 'Webex', 184: 'FaceTime', 185: 'Apple Push',
+        186: 'Apple iMessage', 187: 'Siri', 188: 'Apple Maps',
+        189: 'Apple App Store', 190: 'Apple Services',
+        191: 'Google Play Store', 192: 'Google Analytics', 193: 'Google Ads',
+        194: 'Firebase', 195: 'Google Cloud', 196: 'Microsoft Azure',
+        197: 'AWS S3', 198: 'AWS CloudFront', 199: 'AWS EC2',
+        200: 'Twitch Stream', 201: 'YouTube Live', 202: 'TikTok Live',
+        203: 'Instagram Live', 204: 'Facebook Live', 205: 'Snapchat',
+        206: 'Pinterest', 207: 'LinkedIn', 208: 'Reddit',
+        209: 'Twitter/X Media', 210: 'Tumblr', 211: 'Flickr',
+        212: 'Imgur', 213: 'Giphy', 214: 'Tenor',
+        215: 'Vimeo', 216: 'Dailymotion', 217: 'Veoh',
+        218: 'Plex', 219: 'Jellyfin', 220: 'Emby',
+        221: 'Nintendo Switch', 222: 'PlayStation Network',
+        223: 'Xbox Network', 224: 'Steam Download', 225: 'Origin/EA',
+        226: 'Ubisoft Connect', 227: 'Battle.net', 228: 'GOG Galaxy',
+        229: 'Epic Games Launcher', 230: 'Riot Client',
+        231: 'Valorant', 232: 'League of Legends', 233: 'CSGO',
+        234: 'Dota 2', 235: 'Overwatch', 236: 'World of Warcraft',
+        237: 'Minecraft Multiplayer', 238: 'Roblox Studio', 239: 'Among Us',
+        240: 'VPN tráfico', 241: 'Tor', 242: 'Proxy',
+        243: 'BitTorrent', 244: 'eDonkey', 245: 'Gnutella',
+        246: 'SMTP salida', 247: 'IMAP', 248: 'POP3',
+        249: 'DNS', 250: 'NTP', 251: 'DHCP', 252: 'ICMP',
+        253: 'Multicast', 254: 'Broadcast', 255: 'Otros',
+      }
+
+      const CATEGORY_NAMES: Record<number, string> = {
+        0: 'General', 1: 'Sistema', 2: 'Mensajería instantánea',
+        3: 'Streaming video', 4: 'Streaming', 5: 'Redes sociales',
+        6: 'Juegos', 7: 'Productividad', 8: 'Transferencia de archivos',
+        9: 'VPN / Proxy', 10: 'Seguridad', 11: 'Red',
+        12: 'Acceso remoto', 13: 'Correo electrónico', 14: 'Audio streaming',
+        15: 'Web', 16: 'Cloud', 17: 'Actualizaciones', 18: 'CDN',
+        19: 'Almacenamiento cloud', 20: 'Notificaciones push',
+        21: 'Noticias / Media', 22: 'Comercio', 23: 'Finanzas',
       }
 
       const nowMs = Date.now()
-      const base2 = `/proxy/network/v2/api/site/${site}`
 
       // Hourly bandwidth chart (last 24 h) — confirmed working
       let chart: any[] = []
@@ -1161,71 +1374,64 @@ serve(async (req) => {
         }))
       } catch (_) {}
 
-      // v2 per-app traffic (UniFi Activity page uses this)
+      // v2 per-app DPI traffic — exact endpoints used by UniFi Activity page
+      // Confirmed from nginx logs: POST app-traffic-rate + GET traffic with ms timestamps
       let apps: any[] = []
-      const appPeriods = ['DAY', 'HOUR', '24h', '1d']
-      for (const period of appPeriods) {
-        try {
-          const r = await client.probe(`${base2}/traffic-flow-latest-statistics?period=${period}&top=30`)
-          if (r && (r.data || Array.isArray(r)) && (r.data?.length || (Array.isArray(r) && r.length))) {
-            const rows = r.data || r
-            apps = rows.map((a: any) => ({
-              name: a.application || a.app || a.name || a.category || 'Otros',
-              rx_bytes: a.rx_bytes || a.download || a.bytes_rx || 0,
-              tx_bytes: a.tx_bytes || a.upload || a.bytes_tx || 0,
-              total_bytes: a.total_bytes || a.bytes || ((a.rx_bytes || 0) + (a.tx_bytes || 0)),
-              clients: a.clients || a.num_clients || 0,
-            })).filter((a: any) => a.total_bytes > 0)
-              .sort((a: any, b: any) => b.total_bytes - a.total_bytes)
-            if (apps.length) break
-          }
-        } catch (_) {}
-      }
+      const timeParams = `start=${nowMs - 86400000}&end=${nowMs}&includeUnidentified=true`
 
-      // Also try app-traffic-rate
-      if (!apps.length) {
-        try {
-          const r = await client.probe(`${base2}/app-traffic-rate`)
-          if (r && (r.data || Array.isArray(r))) {
-            const rows = r.data || (Array.isArray(r) ? r : [])
-            if (rows.length) {
-              apps = rows.map((a: any) => ({
-                name: a.application || a.app || a.name || a.category || 'Otros',
-                rx_bytes: a.rx_bytes || a.rx || 0,
-                tx_bytes: a.tx_bytes || a.tx || 0,
-                total_bytes: (a.rx_bytes || a.rx || 0) + (a.tx_bytes || a.tx || 0),
-                clients: a.clients || 0,
-              })).filter((a: any) => a.total_bytes > 0)
+      // GET /traffic — per-app totals (327 KB, confirmed in nginx logs)
+      let trafficRaw: any = null
+      try {
+        const tRes = await fetch(
+          `${config.controller_url.replace(/\/$/, '')}${base2}/traffic?${timeParams}`,
+          { headers: { 'Cookie': client.cookies, 'X-Csrf-Token': client.csrf } }
+        )
+        if (tRes.ok) trafficRaw = await tRes.json()
+      } catch (_) {}
+
+      if (params.debug) return json({
+        ok: true,
+        traffic_status: trafficRaw ? 'ok' : 'failed',
+        traffic_keys: trafficRaw ? Object.keys(trafficRaw) : null,
+        total_usage_preview: trafficRaw?.total_usage_by_app?.slice(0, 5) ?? null,
+        client_usage_count: trafficRaw?.client_usage_by_app?.length ?? 0,
+      })
+
+      // Parse /traffic response — keys: total_usage_by_app + client_usage_by_app
+      if (trafficRaw) {
+        // Build per-app client stats: count + top client
+        const appClientMap: Record<number, { count: number; topClient: string; topBytes: number }> = {}
+        for (const entry of (trafficRaw.client_usage_by_app || [])) {
+          const clientName = entry.client?.name || entry.client?.hostname || entry.client?.mac || 'Unknown'
+          for (const usage of (entry.usage_by_app || [])) {
+            const appId: number = usage.application
+            if (!appClientMap[appId]) appClientMap[appId] = { count: 0, topClient: '', topBytes: 0 }
+            appClientMap[appId].count++
+            if ((usage.total_bytes ?? 0) > appClientMap[appId].topBytes) {
+              appClientMap[appId].topBytes = usage.total_bytes ?? 0
+              appClientMap[appId].topClient = clientName
             }
           }
-        } catch (_) {}
-      }
+        }
 
-      // DPI REST endpoint
-      if (!apps.length) {
-        try {
-          const r = await client.get(`${base}/stat/stadpi`)
-          if (r?.data?.length) {
-            const byApp: Record<number, { rx: number; tx: number }> = {}
-            for (const s of r.data) {
-              for (const d of s.by_app || []) {
-                if (!byApp[d.app]) byApp[d.app] = { rx: 0, tx: 0 }
-                byApp[d.app].rx += d.rx_bytes || 0
-                byApp[d.app].tx += d.tx_bytes || 0
-              }
-            }
-            apps = Object.entries(byApp)
-              .map(([appId, v]) => ({
-                name: DPI_NAMES[Number(appId)] || `App ${appId}`,
-                rx_bytes: v.rx,
-                tx_bytes: v.tx,
-                total_bytes: v.rx + v.tx,
-                clients: 0,
-              }))
-              .filter(a => a.total_bytes > 0)
-              .sort((a, b) => b.total_bytes - a.total_bytes)
-          }
-        } catch (_) {}
+        const rows: any[] = trafficRaw.total_usage_by_app || []
+        if (rows.length) {
+          apps = rows
+            .filter((a: any) => a && typeof a === 'object')
+            .map((a: any) => {
+              const appId: number = a.application
+              const rx = a.bytes_received ?? 0
+              const tx = a.bytes_transmitted ?? 0
+              const total = a.total_bytes ?? (rx + tx)
+              const name = DPI_NAMES[appId] ?? (CATEGORY_NAMES[a.category] !== undefined ? `${CATEGORY_NAMES[a.category]} #${appId}` : `App ${appId}`)
+              const ci = appClientMap[appId] || { count: 0, topClient: '', topBytes: 0 }
+              return { name, app_id: appId, rx_bytes: rx, tx_bytes: tx, total_bytes: total,
+                clients: ci.count, top_client: ci.topClient }
+            })
+            .filter((a: any) => a.total_bytes > 0)
+            .sort((a: any, b: any) => b.total_bytes - a.total_bytes)
+            .slice(0, 30)
+        }
       }
 
       // Per-device 24h traffic via hourly user report

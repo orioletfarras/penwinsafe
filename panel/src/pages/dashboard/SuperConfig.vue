@@ -106,12 +106,76 @@
       </div>
 
       <!-- Connected summary -->
-      <div v-if="config.last_check_ok === true && !wDone && wStep === 0" class="px-6 py-4">
+      <div v-if="config.last_check_ok === true && !wDone && wStep === 0" class="px-6 py-4 space-y-3">
         <div class="flex items-center gap-3 p-3 rounded-lg" style="background:#f0fdf4;border:1px solid #bbf7d0">
           <CheckCircleIcon class="w-4 h-4 flex-shrink-0" style="color:#16a34a" />
-          <div>
+          <div class="flex-1">
             <p class="text-[12px] font-medium" style="color:#15803d">Controlador conectado</p>
             <p class="text-[11px] mt-0.5" style="color:#16a34a">{{ config.controller_url }} · Site: {{ config.site_id }}</p>
+          </div>
+          <div v-if="unifiStatus" class="flex items-center gap-1.5">
+            <span class="text-[10px] font-medium px-2 py-0.5 rounded"
+              :style="unifiStatus.is_uxg
+                ? 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe'
+                : 'background:#fff7ed;color:#c2410c;border:1px solid #fed7aa'">
+              {{ unifiStatus.is_uxg ? 'UXG / UDM ✓' : 'USG (limitado)' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- DNS Zone configuration (only if UXG detected and CF zones exist) -->
+        <div v-if="config.last_check_ok" class="rounded-lg p-3" style="background:#f8fafc;border:1px solid #e2e8f0">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-[12px] font-medium" style="color:#374151">Filtrado DNS por zonas</p>
+              <p class="text-[11px] mt-0.5" style="color:#6b7280">
+                <span v-if="config.dns_zones_configured" style="color:#16a34a">✓ VLANs y DoH configurados en el router</span>
+                <span v-else>Crea las VLANs y configura DoH automáticamente en el UXG</span>
+              </p>
+            </div>
+            <button @click="configureDnsZones" :disabled="configuringDns"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-white transition-all flex-shrink-0"
+              :style="configuringDns ? 'background:#9ca3af;cursor:not-allowed' : 'background:#006fff'">
+              <ArrowPathIcon v-if="configuringDns" class="w-3 h-3 animate-spin" />
+              <ServerIcon v-else class="w-3 h-3" />
+              {{ configuringDns ? 'Configurando...' : config.dns_zones_configured ? 'Reconfigurar' : 'Configurar ahora' }}
+            </button>
+          </div>
+
+          <!-- Result of DNS zone configuration -->
+          <div v-if="dnsZoneResult" class="mt-3 space-y-1">
+            <p v-for="c in dnsZoneResult.checks" :key="c" class="text-[11px] flex items-center gap-1.5" style="color:#16a34a">
+              <span>✓</span> {{ c }}
+            </p>
+            <p v-for="e in dnsZoneResult.errors" :key="e" class="text-[11px] flex items-center gap-1.5" style="color:#dc2626">
+              <span>✗</span> {{ e }}
+            </p>
+          </div>
+
+          <!-- DNS probe (diagnóstico) -->
+          <div class="mt-3 pt-3" style="border-top:1px solid #e2e8f0">
+            <p class="text-[11px] font-medium mb-2" style="color:#6b7280">Diagnóstico DNS por VLAN</p>
+            <div class="flex gap-2 flex-wrap">
+              <button v-for="vlan in ['Aulas', 'Clases', 'Usuarios Profesores', '']" :key="vlan"
+                @click="probeVlanDns(vlan)"
+                :disabled="probingVlan"
+                class="px-2.5 py-1 rounded text-[11px] font-medium transition-colors"
+                style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0"
+                @mouseenter="e => e.currentTarget.style.background='#e2e8f0'"
+                @mouseleave="e => e.currentTarget.style.background='#f1f5f9'">
+                {{ probingVlan ? '...' : (vlan || 'Ver todo') }}
+              </button>
+              <button @click="probeFirewall"
+                :disabled="probingVlan"
+                class="px-2.5 py-1 rounded text-[11px] font-medium transition-colors"
+                style="background:#fef3c7;color:#92400e;border:1px solid #fde68a"
+                @mouseenter="e => e.currentTarget.style.background='#fde68a'"
+                @mouseleave="e => e.currentTarget.style.background='#fef3c7'">
+                {{ probingVlan ? '...' : 'Firewall DNS' }}
+              </button>
+            </div>
+            <pre v-if="probeResult" class="mt-2 text-[10px] rounded p-2 overflow-auto max-h-48"
+              style="background:#0f172a;color:#94a3b8;white-space:pre-wrap;word-break:break-all">{{ JSON.stringify(probeResult, null, 2) }}</pre>
           </div>
         </div>
       </div>
@@ -251,6 +315,66 @@
       </div>
     </div>
 
+    <!-- DNS Enforcement (zone-based firewall) -->
+    <div v-if="config.last_check_ok" class="card overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4" style="border-bottom:1px solid #f3f4f6">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:#fef3c7">
+          <ShieldCheckIcon class="w-4 h-4" style="color:#d97706" />
+        </div>
+        <div class="flex-1">
+          <h2 class="text-[14px] font-semibold" style="color:#111827">Refuerzo DNS (Firewall)</h2>
+          <p class="text-[12px]" style="color:#6b7280">Obliga a que todo el DNS pase por el servidor filtrado. Compatible con UXG / UDM.</p>
+        </div>
+      </div>
+
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label class="block text-[12px] font-medium mb-1" style="color:#374151">IP del servidor DNS filtrado</label>
+          <p class="text-[11px] mb-1.5" style="color:#9ca3af">Ej: 192.168.1.215 (Windows Server con CleanBrowsing) o IP de Cloudflare Gateway</p>
+          <input v-model="dnsEnfIp" type="text" placeholder="192.168.x.x"
+            class="w-full px-3 py-2 rounded-lg text-[13px] font-mono outline-none transition-all"
+            style="border:1px solid #d1d5db;color:#111827;max-width:260px"
+            @focus="e => e.target.style.borderColor='#d97706'"
+            @blur="e => e.target.style.borderColor='#d1d5db'" />
+        </div>
+
+        <div class="rounded-lg p-3 text-[11px]" style="background:#fef9ec;border:1px solid #fde68a;color:#92400e">
+          <p class="font-medium mb-1">Se creará automáticamente:</p>
+          <ul class="space-y-0.5 pl-2">
+            <li>• Grupo "DNS_Permitido" con la IP del servidor filtrado</li>
+            <li>• Grupo "DoH_Providers" ({{ dohIpCount }} IPs de proveedores DoH conocidos)</li>
+            <li>• Reglas ALLOW: puerto 53 desde todas las zonas → servidor filtrado</li>
+            <li>• Reglas BLOCK: bloquea puerto 53 desde cada VLAN hacia cualquier otro destino (LAN + WAN)</li>
+            <li>• Reglas BLOCK: bloquea DNS-over-HTTPS (puerto 443 TCP) hacia proveedores DoH</li>
+          </ul>
+        </div>
+
+        <div class="flex gap-3">
+          <button @click="setupDnsEnforcement"
+            :disabled="!dnsEnfIp.trim() || enforcingDns"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium text-white transition-all"
+            :style="(!dnsEnfIp.trim() || enforcingDns) ? 'background:#9ca3af;cursor:not-allowed' : 'background:#d97706'">
+            <ArrowPathIcon v-if="enforcingDns" class="w-3.5 h-3.5 animate-spin" />
+            <ShieldCheckIcon v-else class="w-3.5 h-3.5" />
+            {{ enforcingDns ? 'Configurando...' : 'Aplicar reglas DNS' }}
+          </button>
+        </div>
+
+        <div v-if="dnsEnfResult" class="rounded-lg p-3 space-y-0.5"
+          :style="dnsEnfResult.ok ? 'background:#f0fdf4;border:1px solid #bbf7d0' : 'background:#fef2f2;border:1px solid #fecaca'">
+          <p v-for="c in dnsEnfResult.checks" :key="c" class="text-[11px] flex items-center gap-1.5" style="color:#16a34a">
+            <span>✓</span> {{ c }}
+          </p>
+          <p v-for="e in dnsEnfResult.errors" :key="e" class="text-[11px] flex items-center gap-1.5" style="color:#dc2626">
+            <span>✗</span> {{ e }}
+          </p>
+          <p v-if="dnsEnfResult.vlans_configured !== undefined" class="text-[11px] pt-1" style="color:#6b7280;border-top:1px solid #e5e7eb;margin-top:4px">
+            {{ dnsEnfResult.vlans_configured }} VLANs: {{ (dnsEnfResult.vlans || []).join(', ') }}
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- PenwinSafe Network -->
     <div class="card p-6">
       <div class="flex items-center gap-3 mb-5">
@@ -365,8 +489,117 @@
 
       <div v-if="cfOpen" class="px-6 py-5 space-y-5">
 
-        <!-- Credentials -->
-        <div class="space-y-3">
+        <!-- Tab nav -->
+        <div class="flex gap-1 border-b" style="border-color:#f3f4f6">
+          <button v-for="t in ['Configuración','Estadísticas']" :key="t"
+            @click="cfTab = t"
+            class="px-3 py-1.5 text-[12px] font-medium transition-all -mb-px"
+            :style="cfTab === t
+              ? 'color:#f97316;border-bottom:2px solid #f97316'
+              : 'color:#9ca3af;border-bottom:2px solid transparent'">
+            {{ t }}
+          </button>
+        </div>
+
+        <!-- Stats tab -->
+        <div v-if="cfTab === 'Estadísticas'" class="space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="flex gap-1 p-0.5 rounded-lg" style="background:#f3f4f6">
+              <button v-for="d in [1,7,30]" :key="d"
+                @click="cfStatsDays = d; cfLoadStats()"
+                class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-all"
+                :style="cfStatsDays === d ? 'background:#fff;color:#f97316;box-shadow:0 1px 2px rgba(0,0,0,.08)' : 'color:#6b7280'">
+                {{ d === 1 ? 'Hoy' : d === 7 ? '7 días' : '30 días' }}
+              </button>
+            </div>
+            <button @click="cfLoadStats" :disabled="cfLoadingStats"
+              class="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors"
+              style="color:#9ca3af"
+              @mouseenter="e => e.currentTarget.style.color='#374151'"
+              @mouseleave="e => e.currentTarget.style.color='#9ca3af'">
+              <ArrowPathIcon class="w-3 h-3" :class="cfLoadingStats ? 'animate-spin' : ''" />
+              Actualizar
+            </button>
+          </div>
+
+          <!-- Loading -->
+          <div v-if="cfLoadingStats" class="flex items-center gap-2 py-8 justify-center" style="color:#9ca3af">
+            <ArrowPathIcon class="w-4 h-4 animate-spin" />
+            <span class="text-[12px]">Cargando estadísticas...</span>
+          </div>
+
+          <!-- No data -->
+          <div v-else-if="!cfStats && !cfCfg.zones_created" class="py-6 text-center text-[12px]" style="color:#9ca3af">
+            Crea las zonas DNS primero para ver estadísticas
+          </div>
+
+          <!-- Stats -->
+          <div v-else-if="cfStats" class="space-y-4">
+
+            <!-- Summary cards -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="rounded-xl p-4" style="background:#f0fdf4;border:1px solid #bbf7d0">
+                <p class="text-[10px] uppercase tracking-wide mb-1" style="color:#16a34a">Permitidas</p>
+                <p class="text-[22px] font-bold" style="color:#15803d">{{ cfStats.total_allowed.toLocaleString() }}</p>
+                <p class="text-[10px] mt-0.5" style="color:#16a34a">últimos {{ cfStats.days }} días</p>
+              </div>
+              <div class="rounded-xl p-4" style="background:#fef2f2;border:1px solid #fecaca">
+                <p class="text-[10px] uppercase tracking-wide mb-1" style="color:#dc2626">Bloqueadas</p>
+                <p class="text-[22px] font-bold" style="color:#991b1b">{{ cfStats.total_blocked.toLocaleString() }}</p>
+                <p class="text-[10px] mt-0.5" style="color:#dc2626">
+                  {{ cfStats.total_allowed + cfStats.total_blocked > 0
+                    ? Math.round(cfStats.total_blocked / (cfStats.total_allowed + cfStats.total_blocked) * 100)
+                    : 0 }}% del total
+                </p>
+              </div>
+            </div>
+
+            <!-- By location -->
+            <div v-if="Object.keys(cfStats.by_location).length" class="rounded-xl p-4 space-y-2" style="background:#f9fafb;border:1px solid #e5e7eb">
+              <p class="text-[11px] font-semibold mb-2" style="color:#374151">Por zona</p>
+              <div v-for="(v, loc) in cfStats.by_location" :key="loc" class="space-y-1">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span style="color:#374151">{{ loc }}</span>
+                  <span style="color:#6b7280">
+                    <span style="color:#16a34a">{{ v.allowed.toLocaleString() }}</span>
+                    <span class="mx-1">·</span>
+                    <span style="color:#dc2626">{{ v.blocked.toLocaleString() }} bloq</span>
+                  </span>
+                </div>
+                <div class="h-1.5 rounded-full overflow-hidden" style="background:#e5e7eb">
+                  <div class="h-full rounded-full" style="background:#dc2626;transition:width .3s"
+                    :style="`width:${v.allowed + v.blocked > 0 ? Math.round(v.blocked / (v.allowed + v.blocked) * 100) : 0}%`">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Top blocked -->
+            <div v-if="cfStats.top_blocked.length" class="rounded-xl overflow-hidden" style="border:1px solid #e5e7eb">
+              <div class="px-4 py-2.5 flex items-center justify-between" style="background:#fef2f2;border-bottom:1px solid #fecaca">
+                <p class="text-[11px] font-semibold" style="color:#991b1b">Dominios más bloqueados</p>
+                <span class="text-[10px]" style="color:#dc2626">{{ cfStats.top_blocked.length }} únicos</span>
+              </div>
+              <div class="divide-y" style="divide-color:#f3f4f6">
+                <div v-for="item in cfStats.top_blocked" :key="item.name"
+                  class="flex items-center justify-between px-4 py-2 text-[11px]">
+                  <span class="font-mono truncate" style="color:#374151;max-width:70%">{{ item.name }}</span>
+                  <span class="font-medium flex-shrink-0 ml-2 px-1.5 py-0.5 rounded text-[10px]"
+                    style="background:#fef2f2;color:#dc2626">
+                    {{ item.count.toLocaleString() }}×
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p v-if="!cfStats.top_blocked.length && !cfStats.total_blocked" class="text-[12px] text-center py-4" style="color:#9ca3af">
+              Sin bloqueos en este período — todo el tráfico permitido ✓
+            </p>
+          </div>
+        </div>
+
+        <!-- Credentials (only shown in config tab) -->
+        <div v-if="cfTab === 'Configuración'" class="space-y-3">
           <p class="text-[12px] font-medium" style="color:#374151">Credenciales Cloudflare</p>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -405,7 +638,7 @@
         </div>
 
         <!-- Zone config (only when categories loaded) -->
-        <div v-if="cfCategories.length" class="space-y-4">
+        <div v-if="cfCategories.length && cfTab === 'Configuración'" class="space-y-4">
           <p class="text-[12px] font-medium" style="color:#374151">
             Configuración de zonas
             <span class="ml-2 text-[11px] font-normal" style="color:#9ca3af">{{ cfCategories.length }} categorías disponibles</span>
@@ -487,21 +720,38 @@
             </div>
           </div>
 
-          <!-- DoH URLs when active -->
-          <div v-if="cfCfg.zones_created" class="rounded-xl p-4 space-y-2.5" style="background:#f9fafb;border:1px solid #e5e7eb">
-            <p class="text-[11px] font-semibold mb-3" style="color:#374151">URLs DNS-over-HTTPS activas</p>
-            <div v-for="zone in cfZones" :key="zone.key" class="flex items-center gap-2">
-              <component :is="zone.icon" class="w-3.5 h-3.5 flex-shrink-0" :style="`color:${zone.color}`" />
-              <span class="text-[11px] w-24 flex-shrink-0 font-medium" style="color:#374151">{{ cfZoneNames[zone.key] }}</span>
-              <code v-if="cfCfg[`zone_${zone.key}_doh`]" class="flex-1 text-[10px] truncate" style="color:#6b7280">
-                https://{{ cfCfg[`zone_${zone.key}_doh`] }}.cloudflare-gateway.com/dns-query
-              </code>
-              <button v-if="cfCfg[`zone_${zone.key}_doh`]" @click="cfCopyDoh(zone.key)"
-                class="text-[10px] px-2 py-0.5 rounded" style="color:#9ca3af;border:1px solid #e5e7eb"
-                @mouseenter="e => e.currentTarget.style.color='#374151'"
-                @mouseleave="e => e.currentTarget.style.color='#9ca3af'">
-                Copiar
-              </button>
+          <!-- DNS endpoints when active -->
+          <div v-if="cfCfg.zones_created" class="rounded-xl p-4 space-y-4" style="background:#f9fafb;border:1px solid #e5e7eb">
+            <p class="text-[11px] font-semibold" style="color:#374151">Servidores DNS activos</p>
+            <div v-for="zone in cfZones" :key="zone.key" class="space-y-1.5">
+              <div class="flex items-center gap-1.5 mb-1">
+                <component :is="zone.icon" class="w-3 h-3 flex-shrink-0" :style="`color:${zone.color}`" />
+                <span class="text-[11px] font-semibold" :style="`color:${zone.color}`">{{ cfZoneNames[zone.key] }}</span>
+              </div>
+              <!-- Standard DNS -->
+              <div v-if="cfCfg[`zone_${zone.key}_ip`]?.length" class="flex items-center gap-2 pl-4">
+                <span class="text-[10px] w-20 flex-shrink-0" style="color:#9ca3af">DNS estándar</span>
+                <code class="text-[10px] font-mono" style="color:#374151">{{ cfCfg[`zone_${zone.key}_ip`].join(', ') }}</code>
+                <button @click="cfCopyIp(zone.key)"
+                  class="text-[10px] px-1.5 py-0.5 rounded" style="color:#9ca3af;border:1px solid #e5e7eb"
+                  @mouseenter="e => e.currentTarget.style.color='#374151'"
+                  @mouseleave="e => e.currentTarget.style.color='#9ca3af'">
+                  Copiar
+                </button>
+              </div>
+              <!-- DoH -->
+              <div v-if="cfCfg[`zone_${zone.key}_doh`]" class="flex items-center gap-2 pl-4">
+                <span class="text-[10px] w-20 flex-shrink-0" style="color:#9ca3af">DNS-over-HTTPS</span>
+                <code class="flex-1 text-[10px] truncate font-mono" style="color:#374151">
+                  https://{{ cfCfg[`zone_${zone.key}_doh`] }}.cloudflare-gateway.com/dns-query
+                </code>
+                <button @click="cfCopyDoh(zone.key)"
+                  class="text-[10px] px-1.5 py-0.5 rounded" style="color:#9ca3af;border:1px solid #e5e7eb"
+                  @mouseenter="e => e.currentTarget.style.color='#374151'"
+                  @mouseleave="e => e.currentTarget.style.color='#9ca3af'">
+                  Copiar
+                </button>
+              </div>
             </div>
           </div>
 
@@ -545,7 +795,7 @@ import {
   WifiIcon, ShieldCheckIcon, ArrowPathIcon, CheckCircleIcon,
   ExclamationCircleIcon, PlusCircleIcon, ArrowRightIcon,
   CloudIcon, ShieldExclamationIcon, UserGroupIcon, WrenchScrewdriverIcon,
-  TrashIcon, ClipboardDocumentIcon,
+  TrashIcon, ClipboardDocumentIcon, ServerIcon,
 } from '@heroicons/vue/24/outline'
 
 const route  = useRoute()
@@ -630,6 +880,13 @@ const saveOk       = ref(false)
 const activating   = ref(false)
 const setupResult  = ref(null)
 
+// UniFi DNS zones
+const unifiStatus    = ref(null)
+const configuringDns = ref(false)
+const dnsZoneResult  = ref(null)
+const probingVlan    = ref(false)
+const probeResult    = ref(null)
+
 // Wizard
 const wSteps = ['URL', 'Credenciales', 'Site', 'Resultado']
 const wStep  = ref(1)   // 0 = show summary if connected, 1-4 = wizard steps
@@ -707,6 +964,7 @@ async function loadConfig() {
     if (data.last_check_ok === true) {
       wStep.value = 0
       if (data.site_id) availableSites.value = [{ id: data.site_id, label: data.site_id }]
+      checkUnifiStatus()
     } else {
       wStep.value = 1
     }
@@ -729,6 +987,80 @@ async function callUnifiApi(action, extra = {}) {
     }
   )
   return await res.json()
+}
+
+async function checkUnifiStatus() {
+  if (!config.value.last_check_ok) return
+  try {
+    const r = await callUnifiApi('check')
+    if (r.ok) unifiStatus.value = r
+  } catch { /* silent */ }
+}
+
+async function configureDnsZones() {
+  configuringDns.value = true
+  dnsZoneResult.value = null
+  try {
+    const r = await callUnifiApi('configure_dns_zones')
+    dnsZoneResult.value = r
+    if (r.ok) {
+      config.value.dns_zones_configured = true
+      toast.success('VLANs y DNS configurados en el router')
+    } else if (r.error) {
+      toast.error(r.error)
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    configuringDns.value = false
+  }
+}
+
+async function probeVlanDns(vlanName) {
+  probingVlan.value = true
+  probeResult.value = null
+  try {
+    const r = await callUnifiApi('probe_vlan', { vlan_name: vlanName || '' })
+    probeResult.value = r
+  } catch (e) {
+    probeResult.value = { error: e.message }
+  } finally {
+    probingVlan.value = false
+  }
+}
+
+// ── DNS Enforcement ───────────────────────────────────────────────────────
+const dnsEnfIp      = ref('')
+const enforcingDns  = ref(false)
+const dnsEnfResult  = ref(null)
+const dohIpCount    = 32 // matches DOH_IPS array in edge function
+
+async function setupDnsEnforcement() {
+  if (!dnsEnfIp.value.trim()) return
+  enforcingDns.value = true
+  dnsEnfResult.value = null
+  try {
+    const r = await callUnifiApi('setup_dns_enforcement', { dns_server_ip: dnsEnfIp.value.trim() })
+    dnsEnfResult.value = r
+    if (r.ok) config.value.dns_zones_configured = true
+  } catch (e) {
+    dnsEnfResult.value = { ok: false, checks: [], errors: [e.message] }
+  } finally {
+    enforcingDns.value = false
+  }
+}
+
+async function probeFirewall() {
+  probingVlan.value = true
+  probeResult.value = null
+  try {
+    const r = await callUnifiApi('probe_firewall')
+    probeResult.value = r
+  } catch (e) {
+    probeResult.value = { error: e.message }
+  } finally {
+    probingVlan.value = false
+  }
 }
 
 async function testAndSave() {
@@ -798,19 +1130,20 @@ async function activateNetwork() {
   }
 }
 
-onMounted(loadConfig)
-watch(orgSwitchKey, () => { if (selectedOrgId.value) loadConfig() })
-
 // ── Cloudflare DNS ────────────────────────────────────────────────────────
 
-const cfOpen      = ref(false)
-const cfVerifying = ref(false)
-const cfCredError = ref('')
+const cfOpen        = ref(false)
+const cfTab         = ref('Configuración')
+const cfStatsDays   = ref(7)
+const cfLoadingStats = ref(false)
+const cfStats       = ref(null)
+const cfVerifying   = ref(false)
+const cfCredError   = ref('')
 const cfLoadingCats = ref(false)
-const cfCreating  = ref(false)
-const cfDeleting  = ref(false)
-const cfResult    = ref(null)
-const cfActiveZone = ref(null)
+const cfCreating    = ref(false)
+const cfDeleting    = ref(false)
+const cfResult      = ref(null)
+const cfActiveZone  = ref(null)
 
 const cfCfg = ref({
   last_check_ok: null, zones_created: false,
@@ -832,7 +1165,10 @@ const cfZones = [
 ]
 
 function cfGroupCats(cls) {
-  return cfCategories.value.filter(c => cls === 'security' ? c.class === 'security' : c.class !== 'security')
+  // Cloudflare uses class:'free'|'blocked' for security/threat categories, 'premium'|'removalPending' for content
+  return cfCategories.value.filter(c => cls === 'security'
+    ? (c.class === 'free' || c.class === 'blocked')
+    : (c.class !== 'free' && c.class !== 'blocked'))
 }
 
 function cfToggleCat(key, id) {
@@ -901,7 +1237,21 @@ async function cfLoadConfig() {
     }
     if (data.available_categories?.length) cfCategories.value = data.available_categories
     if (data.last_check_ok) cfOpen.value = true
+
+    // Auto-fetch IPs from Cloudflare if zones exist but IPs weren't saved yet
+    if (data.zones_created && !data.zone_students_ip?.length) {
+      cfCallApi({ action: 'refresh_ips' }).then(() => cfLoadConfig())
+    }
   }
+}
+
+async function cfLoadStats() {
+  cfLoadingStats.value = true
+  try {
+    const r = await cfCallApi({ action: 'get_stats', days: cfStatsDays.value })
+    if (r.ok) cfStats.value = r
+  } catch { /* ignore */ }
+  finally { cfLoadingStats.value = false }
 }
 
 async function cfVerify() {
@@ -975,6 +1325,11 @@ async function cfDeleteZones() {
 function cfCopyDoh(key) {
   const sub = cfCfg.value[`zone_${key}_doh`]
   if (sub) navigator.clipboard.writeText(`https://${sub}.cloudflare-gateway.com/dns-query`)
+}
+
+function cfCopyIp(key) {
+  const ips = cfCfg.value[`zone_${key}_ip`]
+  if (ips?.length) navigator.clipboard.writeText(ips.join(', '))
 }
 
 onMounted(() => { loadConfig(); cfLoadConfig() })

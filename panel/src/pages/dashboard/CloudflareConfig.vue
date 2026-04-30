@@ -7,14 +7,21 @@
         <h1 class="text-lg font-bold text-gray-900 tracking-tight">DNS Escolar</h1>
         <p class="text-xs text-gray-400 mt-0.5">Filtrado de contenido · <span class="text-gray-600 font-medium">{{ currentOrgName }}</span></p>
       </div>
-      <span v-if="cfg.zones_created"
-        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Activo
-      </span>
-      <span v-else
-        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200">
-        Sin configurar
-      </span>
+      <div class="flex items-center gap-2">
+        <span v-if="cfg.zones_created"
+          class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500">
+          <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>Activo
+        </span>
+        <span v-else
+          class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-400">
+          <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>Sin configurar
+        </span>
+        <button @click="loadStats(); loadTraffic()" :disabled="loadingStats"
+          class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+          <ArrowPathIcon class="w-3.5 h-3.5" :class="loadingStats ? 'animate-spin' : ''" />
+          Actualizar
+        </button>
+      </div>
     </div>
 
     <!-- Not configured -->
@@ -30,15 +37,14 @@
     <template v-else>
 
       <!-- Tabs -->
-      <div class="flex gap-1 p-1 rounded-xl bg-gray-100">
+      <div class="flex gap-0.5 p-0.5 rounded-lg bg-gray-100">
         <button v-for="t in mainTabs" :key="t.key"
           @click="mainTab = t.key; if(t.key==='stats' && !stats) loadStats()"
-          class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-150"
+          class="flex-1 py-2 rounded-md text-xs font-bold transition-all duration-150"
           :class="mainTab === t.key
-            ? 'bg-white text-orange-500 shadow-sm'
+            ? 'bg-white text-gray-900 shadow-sm'
             : 'text-gray-500 hover:text-gray-700'">
-          <span class="text-base leading-none">{{ t.emoji }}</span>
-          <span>{{ t.label }}</span>
+          {{ t.label }}
         </button>
       </div>
 
@@ -52,7 +58,7 @@
             <button v-for="d in [1,7,30]" :key="d"
               @click="statsDays = d; loadStats()"
               class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
-              :class="statsDays === d ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+              :class="statsDays === d ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
               {{ d === 1 ? 'Hoy' : d === 7 ? '7 días' : '30 días' }}
             </button>
           </div>
@@ -74,11 +80,6 @@
             </button>
           </div>
 
-          <button @click="loadStats" :disabled="loadingStats"
-            class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
-            <ArrowPathIcon class="w-3.5 h-3.5" :class="loadingStats ? 'animate-spin' : ''" />
-            Actualizar
-          </button>
         </div>
 
         <!-- Loading -->
@@ -92,96 +93,66 @@
 
           <!-- KPI cards -->
           <div class="grid grid-cols-3 gap-3">
-            <div class="rounded-2xl p-5 bg-gradient-to-br from-emerald-50 to-green-100 border border-emerald-100">
-              <p class="text-3xl font-black text-emerald-700 tabular-nums">{{ stats.total_allowed.toLocaleString() }}</p>
-              <p class="text-xs font-semibold text-emerald-600 mt-1 uppercase tracking-wide">Permitidas</p>
+            <div class="rounded-2xl p-5 bg-gradient-to-br from-blue-50 to-sky-100 border border-blue-100">
+              <p class="text-3xl font-black text-blue-700 tabular-nums">{{ fmtNum(stats.total_allowed) }}</p>
+              <p class="text-xs font-bold text-blue-500 mt-1 uppercase tracking-wide">Permitidas</p>
             </div>
-            <div class="rounded-2xl p-5 bg-gradient-to-br from-red-50 to-rose-100 border border-red-100">
-              <p class="text-3xl font-black text-red-600 tabular-nums">{{ stats.total_blocked.toLocaleString() }}</p>
-              <p class="text-xs font-semibold text-red-500 mt-1 uppercase tracking-wide">Bloqueadas</p>
+            <div class="rounded-2xl p-5 bg-gradient-to-br from-violet-50 to-purple-100 border border-violet-100">
+              <p class="text-3xl font-black text-violet-700 tabular-nums">{{ fmtNum(stats.total_blocked) }}</p>
+              <p class="text-xs font-bold text-violet-500 mt-1 uppercase tracking-wide">Bloqueadas</p>
             </div>
             <div class="rounded-2xl p-5 bg-gradient-to-br from-gray-50 to-slate-100 border border-gray-200">
               <p class="text-3xl font-black text-gray-800 tabular-nums">
                 {{ stats.total_allowed + stats.total_blocked > 0
                   ? Math.round(stats.total_blocked / (stats.total_allowed + stats.total_blocked) * 100) : 0 }}%
               </p>
-              <p class="text-xs font-semibold text-gray-400 mt-1 uppercase tracking-wide">Tasa de bloqueo</p>
+              <p class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wide">Tasa de bloqueo</p>
             </div>
           </div>
 
-          <!-- Lo más visitado -->
-          <div v-if="topVisited.length" class="space-y-3">
-            <div class="flex items-center justify-between">
-              <p class="text-sm font-bold text-gray-800">Lo más visitado</p>
-              <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">consultas permitidas</span>
+          <!-- Apps table -->
+          <div v-if="appStats.length" class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+            <div class="grid items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wide"
+              style="grid-template-columns:2fr 1fr 1fr 50px">
+              <span>Aplicación</span>
+              <span class="text-right text-sky-400">Permitidas</span>
+              <span class="text-right text-violet-400">Bloqueadas</span>
+              <span class="text-center">%</span>
             </div>
-            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50">
-              <div v-for="(app, i) in topVisited.slice(0, 10)" :key="app.app"
-                class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-                <!-- Rank -->
-                <span class="text-xs font-black tabular-nums flex-shrink-0 w-5 text-right"
-                  :class="i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-orange-300' : 'text-gray-200'">
-                  {{ i + 1 }}
-                </span>
-                <!-- Logo -->
-                <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                  :style="`background:#${BRAND_ICONS[app.app]?.hex || 'f3f4f6'}18`">
-                  <svg v-if="BRAND_ICONS[app.app]" viewBox="0 0 24 24" class="w-4 h-4"
-                    :fill="`#${BRAND_ICONS[app.app].hex === '000000' ? '374151' : BRAND_ICONS[app.app].hex}`">
-                    <path :d="BRAND_ICONS[app.app].path" />
-                  </svg>
-                  <span v-else class="text-sm">🌐</span>
-                </div>
-                <!-- Name + bar -->
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-gray-800 truncate">{{ app.app }}</span>
-                    <span class="text-xs font-semibold text-gray-500 ml-2 flex-shrink-0 tabular-nums">
-                      {{ app.count.toLocaleString() }}
-                    </span>
+            <div class="divide-y divide-gray-50">
+              <div v-for="app in appStats" :key="app.app"
+                class="grid items-center px-4 py-3 hover:bg-gray-50/60 transition-colors"
+                style="grid-template-columns:2fr 1fr 1fr 50px">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                    :style="`background:#${BRAND_ICONS[app.app]?.hex || 'f3f4f6'}18`">
+                    <svg v-if="BRAND_ICONS[app.app]" viewBox="0 0 24 24" class="w-3.5 h-3.5"
+                      :fill="`#${BRAND_ICONS[app.app].hex === '000000' ? '374151' : BRAND_ICONS[app.app].hex}`">
+                      <path :d="BRAND_ICONS[app.app].path" />
+                    </svg>
+                    <span v-else class="text-[11px] text-gray-400 font-bold">{{ app.app.slice(0,2).toUpperCase() }}</span>
                   </div>
-                  <div class="h-1 rounded-full bg-gray-100 overflow-hidden">
-                    <div class="h-full rounded-full transition-all duration-700"
-                      :style="`width:${Math.round(app.count / maxVisited * 100)}%;background:${app.color}`">
+                  <div class="min-w-0">
+                    <p class="text-xs font-bold text-gray-800 truncate">{{ app.app }}</p>
+                    <div class="mt-0.5 h-1 rounded-full bg-gray-100 overflow-hidden" style="width:80px">
+                      <div class="h-full rounded-full transition-all duration-500"
+                        :style="`width:${Math.round((app.allowed + app.blocked) / maxAppTotal * 100)}%;background:${BRAND_ICONS[app.app] ? '#'+BRAND_ICONS[app.app].hex : app.color}`" />
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Lo más bloqueado por app -->
-          <div v-if="topBlocked.length" class="space-y-3">
-            <div class="flex items-center justify-between">
-              <p class="text-sm font-bold text-gray-800">Lo más bloqueado</p>
-              <span class="text-[10px] font-semibold text-red-400 uppercase tracking-wide">consultas bloqueadas</span>
-            </div>
-            <div class="rounded-2xl bg-white border border-red-50 shadow-sm overflow-hidden divide-y divide-gray-50">
-              <div v-for="(app, i) in topBlocked.slice(0, 8)" :key="app.app"
-                class="flex items-center gap-3 px-4 py-3 hover:bg-red-50/30 transition-colors">
-                <span class="text-xs font-black tabular-nums flex-shrink-0 w-5 text-right text-gray-200">
-                  {{ i + 1 }}
-                </span>
-                <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                  :style="`background:#${BRAND_ICONS[app.app]?.hex || 'f3f4f6'}18`">
-                  <svg v-if="BRAND_ICONS[app.app]" viewBox="0 0 24 24" class="w-4 h-4"
-                    :fill="`#${BRAND_ICONS[app.app].hex === '000000' ? '374151' : BRAND_ICONS[app.app].hex}`">
-                    <path :d="BRAND_ICONS[app.app].path" />
-                  </svg>
-                  <span v-else class="text-sm">🌐</span>
+                <div class="text-right">
+                  <p class="text-xs font-semibold text-sky-500 tabular-nums">{{ app.allowed.toLocaleString() }}</p>
                 </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-gray-800 truncate">{{ app.app }}</span>
-                    <span class="text-xs font-bold text-red-400 ml-2 flex-shrink-0 tabular-nums">
-                      {{ app.count.toLocaleString() }}
-                    </span>
-                  </div>
-                  <div class="h-1 rounded-full bg-red-50 overflow-hidden">
-                    <div class="h-full rounded-full bg-gradient-to-r from-red-300 to-rose-500 transition-all duration-700"
-                      :style="`width:${Math.round(app.count / maxBlockedCount * 100)}%`">
-                    </div>
-                  </div>
+                <div class="text-right">
+                  <p class="text-xs font-semibold tabular-nums" :class="app.blocked > 0 ? 'text-violet-500' : 'text-gray-200'">
+                    {{ app.blocked > 0 ? app.blocked.toLocaleString() : '—' }}
+                  </p>
+                </div>
+                <div class="text-center">
+                  <p class="text-xs font-bold tabular-nums"
+                    :class="blockRate(app) > 50 ? 'text-violet-600' : blockRate(app) > 15 ? 'text-violet-400' : 'text-gray-300'">
+                    {{ blockRate(app) > 0 ? blockRate(app) + '%' : '—' }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -189,19 +160,22 @@
 
           <!-- By zone -->
           <div v-if="Object.keys(stats.by_location).length"
-            class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-4">
-            <p class="text-sm font-bold text-gray-800">Por zona</p>
-            <div v-for="(v, loc) in stats.by_location" :key="loc" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-gray-700">{{ loc }}</span>
-                <div class="flex items-center gap-3 text-xs">
-                  <span class="text-emerald-600 font-medium">{{ v.allowed.toLocaleString() }} ✓</span>
-                  <span class="text-red-500 font-medium">{{ v.blocked.toLocaleString() }} ✗</span>
+            class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100">
+              <p class="text-sm font-bold text-gray-800">Por zona</p>
+            </div>
+            <div class="divide-y divide-gray-50">
+              <div v-for="(v, loc) in stats.by_location" :key="loc" class="px-4 py-3.5 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-gray-700">{{ loc }}</span>
+                  <div class="flex items-center gap-3 text-xs">
+                    <span class="text-sky-600 font-semibold tabular-nums">{{ v.allowed.toLocaleString() }} permitidas</span>
+                    <span class="text-violet-500 font-semibold tabular-nums">{{ v.blocked.toLocaleString() }} bloqueadas</span>
+                  </div>
                 </div>
-              </div>
-              <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
-                <div class="h-full rounded-full bg-gradient-to-r from-red-400 to-rose-500 transition-all duration-500"
-                  :style="`width:${v.allowed + v.blocked > 0 ? Math.round(v.blocked / (v.allowed + v.blocked) * 100) : 0}%`">
+                <div class="h-1.5 rounded-full bg-sky-100 overflow-hidden">
+                  <div class="h-full rounded-full bg-gradient-to-r from-violet-400 to-purple-500 transition-all duration-500"
+                    :style="`width:${v.allowed + v.blocked > 0 ? Math.round(v.blocked / (v.allowed + v.blocked) * 100) : 0}%`" />
                 </div>
               </div>
             </div>
@@ -217,59 +191,163 @@
 
             <div v-if="statsExpanded" class="border-t border-gray-100">
 
+              <!-- Search -->
+              <div class="px-5 pt-4 pb-2 border-b border-gray-100">
+                <input v-model="domainSearch" type="text" placeholder="Buscar dominio…"
+                  class="w-full px-3 py-2 rounded-xl text-xs font-mono border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-gray-700 placeholder-gray-300" />
+              </div>
+
               <!-- Blocked by category -->
-              <div class="px-5 pt-4 pb-2">
-                <p class="text-xs font-bold text-gray-800 mb-3">Bloqueados por categoría</p>
-                <div v-if="blockedByCategory.length" class="space-y-3">
+              <div class="px-5 pt-4 pb-3">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>
+                  <p class="text-xs font-bold text-red-600">Bloqueados</p>
+                </div>
+                <div v-if="blockedByCategory.length" class="space-y-2">
                   <div v-for="cat in blockedByCategory" :key="cat.key"
-                    class="rounded-xl border border-gray-100 overflow-hidden">
-                    <!-- Category header -->
-                    <div class="flex items-center justify-between px-3 py-2 bg-gray-50">
+                    class="rounded-xl border border-red-100 overflow-hidden">
+                    <div class="flex items-center justify-between px-3 py-2 bg-red-50">
                       <div class="flex items-center gap-2">
                         <span class="text-base leading-none">{{ cat.emoji }}</span>
-                        <span class="text-xs font-bold text-gray-700">{{ cat.name }}</span>
+                        <span class="text-xs font-bold text-red-700">{{ cat.name }}</span>
                       </div>
-                      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500 ring-1 ring-red-100">
-                        {{ cat.items.reduce((s, i) => s + i.count, 0).toLocaleString() }} bloqueados
+                      <span class="text-[10px] font-bold tabular-nums text-red-500">
+                        {{ cat.items.reduce((s, i) => s + i.count, 0).toLocaleString() }}×
                       </span>
                     </div>
-                    <!-- Domain list -->
-                    <div class="divide-y divide-gray-50 max-h-40 overflow-auto">
-                      <div v-for="(item, i) in cat.items" :key="item.name"
-                        class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 transition-colors">
-                        <span class="text-[10px] w-4 text-right text-gray-300 flex-shrink-0 tabular-nums">{{ i + 1 }}</span>
+                    <div class="divide-y divide-red-50 max-h-40 overflow-auto">
+                      <div v-for="item in cat.items.filter(x => !domainSearch || x.name.includes(domainSearch))" :key="item.name"
+                        class="flex items-center gap-2 px-3 py-1.5 hover:bg-red-50/40 transition-colors">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-300 flex-shrink-0"></span>
                         <span class="flex-1 font-mono text-[11px] text-gray-700 truncate">{{ item.name }}</span>
-                        <span class="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-400">
-                          {{ item.count.toLocaleString() }}×
-                        </span>
+                        <span class="flex-shrink-0 text-[10px] font-bold tabular-nums text-red-400">{{ item.count.toLocaleString() }}×</span>
                       </div>
                     </div>
                   </div>
                 </div>
-                <p v-else class="py-6 text-center text-xs text-gray-400">Sin bloqueos ✓</p>
+                <p v-else class="py-4 text-center text-xs text-gray-400">Sin bloqueos</p>
               </div>
 
               <!-- Divider -->
-              <div class="border-t border-gray-100 mx-5 my-2"></div>
+              <div class="border-t border-gray-100 mx-5"></div>
 
               <!-- Allowed domains -->
-              <div class="px-5 pb-4">
-                <p class="text-xs font-bold text-gray-800 mb-3">Más consultados (permitidos)</p>
-                <div v-if="stats.top_allowed.length" class="rounded-xl border border-gray-100 overflow-hidden divide-y divide-gray-50 max-h-52 overflow-auto">
-                  <div v-for="(item, i) in stats.top_allowed" :key="item.name"
-                    class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 transition-colors">
-                    <span class="text-[10px] w-4 text-right text-gray-300 flex-shrink-0 tabular-nums">{{ i + 1 }}</span>
+              <div class="px-5 pt-4 pb-4">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="w-2 h-2 rounded-full bg-sky-400 flex-shrink-0"></span>
+                  <p class="text-xs font-bold text-sky-600">Permitidos</p>
+                </div>
+                <div v-if="stats.top_allowed.length" class="rounded-xl border border-sky-100 overflow-hidden divide-y divide-sky-50 max-h-52 overflow-auto">
+                  <div v-for="item in stats.top_allowed.filter(x => !domainSearch || x.name.includes(domainSearch))" :key="item.name"
+                    class="flex items-center gap-2 px-3 py-1.5 hover:bg-sky-50/40 transition-colors">
+                    <span class="w-1.5 h-1.5 rounded-full bg-sky-300 flex-shrink-0"></span>
                     <span class="flex-1 font-mono text-[11px] text-gray-700 truncate">{{ item.name }}</span>
-                    <span class="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
-                      {{ item.count.toLocaleString() }}×
-                    </span>
+                    <span class="flex-shrink-0 text-[10px] font-bold tabular-nums text-sky-500">{{ item.count.toLocaleString() }}×</span>
                   </div>
                 </div>
-                <p v-else class="py-6 text-center text-xs text-gray-400">Sin datos</p>
+                <p v-else class="py-4 text-center text-xs text-gray-400">Sin datos</p>
               </div>
 
             </div>
           </div>
+
+          <!-- ── Tráfico de red (UniFi DPI, cuando disponible) ── -->
+          <template v-if="trafficData">
+            <div class="flex items-center gap-3 pt-1">
+              <div class="flex-1 h-px bg-gray-100"></div>
+              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Tráfico · últimas 24 h</span>
+              <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+              <div class="rounded-2xl p-5 bg-gradient-to-br from-blue-50 to-sky-100 border border-blue-100">
+                <p class="text-3xl font-black text-blue-700 tabular-nums">{{ fmt(trafficData.total_rx) }}</p>
+                <p class="text-xs font-bold text-blue-500 mt-1 uppercase tracking-wide">Descargado</p>
+              </div>
+              <div class="rounded-2xl p-5 bg-gradient-to-br from-violet-50 to-purple-100 border border-violet-100">
+                <p class="text-3xl font-black text-violet-700 tabular-nums">{{ fmt(trafficData.total_tx) }}</p>
+                <p class="text-xs font-bold text-violet-500 mt-1 uppercase tracking-wide">Subido</p>
+              </div>
+              <div class="rounded-2xl p-5 bg-gradient-to-br from-gray-50 to-slate-100 border border-gray-200">
+                <p class="text-3xl font-black text-gray-800 tabular-nums">{{ fmt(trafficData.total_rx + trafficData.total_tx) }}</p>
+                <p class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wide">Total</p>
+              </div>
+            </div>
+
+            <div v-if="trafficData.chart && trafficData.chart.length" class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-3">
+              <p class="text-sm font-bold text-gray-800">Tráfico por hora</p>
+              <div class="relative" style="height:140px">
+                <svg class="w-full h-full" :viewBox="`0 0 ${chartW} ${chartH}`" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="dnsRxGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.4"/>
+                      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+                    </linearGradient>
+                    <linearGradient id="dnsTxGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.4"/>
+                      <stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <path :d="areaPath('rx')" fill="url(#dnsRxGrad)" />
+                  <path :d="linePath('rx')" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                  <path :d="areaPath('tx')" fill="url(#dnsTxGrad)" />
+                  <path :d="linePath('tx')" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="absolute top-0 left-0 flex flex-col justify-between h-full pointer-events-none">
+                  <span class="text-[9px] text-gray-300">{{ fmt(chartMaxVal) }}</span>
+                  <span class="text-[9px] text-gray-300">0</span>
+                </div>
+                <div class="absolute bottom-0 left-6 right-0 flex justify-between pointer-events-none">
+                  <span v-for="label in chartXLabels" :key="label" class="text-[9px] text-gray-300">{{ label }}</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1.5"><div class="w-3 h-1 rounded-full bg-sky-400"></div><span class="text-xs text-gray-500">Descarga</span></div>
+                <div class="flex items-center gap-1.5"><div class="w-3 h-1 rounded-full bg-violet-400"></div><span class="text-xs text-gray-500">Subida</span></div>
+              </div>
+            </div>
+
+            <div v-if="trafficData.apps && trafficData.apps.length" class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+              <div class="grid items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wide"
+                style="grid-template-columns:2fr 1fr 1fr 1.5fr 40px">
+                <span>Aplicación</span>
+                <span class="text-right text-sky-400">Descarga</span>
+                <span class="text-right text-violet-400">Subida</span>
+                <span class="text-right">Top cliente</span>
+                <span class="text-center">Nº</span>
+              </div>
+              <div class="divide-y divide-gray-50">
+                <div v-for="app in trafficData.apps" :key="app.name"
+                  class="grid items-center px-4 py-3 hover:bg-gray-50/60 transition-colors"
+                  style="grid-template-columns:2fr 1fr 1fr 1.5fr 40px">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                      :style="`background:#${BRAND_ICONS[app.name]?.hex || 'f3f4f6'}18`">
+                      <svg v-if="BRAND_ICONS[app.name]" viewBox="0 0 24 24" class="w-3.5 h-3.5"
+                        :fill="`#${BRAND_ICONS[app.name].hex === '000000' ? '374151' : BRAND_ICONS[app.name].hex}`">
+                        <path :d="BRAND_ICONS[app.name].path" />
+                      </svg>
+                      <span v-else class="text-[11px] text-gray-400 font-bold">{{ app.name.slice(0,2).toUpperCase() }}</span>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-xs font-bold text-gray-800 truncate">{{ app.name }}</p>
+                      <div class="mt-0.5 h-1 rounded-full bg-gray-100 overflow-hidden" style="width:80px">
+                        <div class="h-full rounded-full transition-all duration-500"
+                          :style="`width:${pctApp(app.total_bytes)}%;background:${BRAND_ICONS[app.name] ? '#'+BRAND_ICONS[app.name].hex : '#94a3b8'}`" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-xs font-semibold text-sky-500">{{ fmt(app.rx_bytes) }}</p>
+                    <p class="text-[10px] text-gray-400">{{ fmt(app.total_bytes) }}</p>
+                  </div>
+                  <p class="text-xs font-semibold text-violet-500 text-right">{{ fmt(app.tx_bytes) }}</p>
+                  <p class="text-[11px] text-gray-500 text-right truncate pl-2">{{ app.top_client || '—' }}</p>
+                  <p class="text-xs font-bold text-gray-400 text-center">{{ app.clients || '—' }}</p>
+                </div>
+              </div>
+            </div>
+          </template>
 
         </template>
 
@@ -335,7 +413,7 @@
           <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
             <button @click="filterExpanded = !filterExpanded"
               class="w-full flex items-center justify-between px-5 py-4 text-xs font-bold hover:bg-gray-50 transition-colors"
-              :class="filterExpanded ? 'text-orange-500' : 'text-gray-500'">
+              :class="filterExpanded ? 'text-blue-600' : 'text-gray-500'">
               <div class="flex items-center gap-2">
                 <WrenchScrewdriverIcon class="w-4 h-4" />
                 {{ filterExpanded ? 'Modo avanzado activo — oculta los toggles básicos' : 'Configuración avanzada de categorías' }}
@@ -378,12 +456,12 @@
                 <div v-else-if="activeTab[zone.key] === 'blocked'">
                   <textarea v-model="domainInputs[zone.key]" @blur="parseDomains(zone.key)"
                     rows="4" placeholder="redesocial.com&#10;*.streaming.net"
-                    class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
+                    class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
                 </div>
                 <div v-else-if="activeTab[zone.key] === 'allowed'">
                   <textarea v-model="whitelistInputs[zone.key]" @blur="parseWhitelist(zone.key)"
                     rows="4" placeholder="recursoseducativos.com&#10;*.google.com"
-                    class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
+                    class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
                 </div>
               </div>
             </div>
@@ -402,12 +480,12 @@
           <div class="flex items-center gap-3">
             <button @click="applyFromToggles" :disabled="applying || saving"
               class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-150 shadow-sm"
-              :class="(applying || saving) ? 'bg-gray-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600 active:scale-95'">
+              :class="(applying || saving) ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'">
               <ArrowPathIcon v-if="applying" class="w-4 h-4 animate-spin" />
               <ShieldCheckIcon v-else class="w-4 h-4" />
               {{ applying ? 'Aplicando…' : 'Guardar y aplicar' }}
             </button>
-            <p class="text-xs text-gray-400">Los cambios se aplican inmediatamente en Cloudflare</p>
+            <p class="text-xs text-gray-400">Los cambios se aplican inmediatamente en el filtro DNS</p>
           </div>
 
         </template>
@@ -417,15 +495,14 @@
       <!-- ── ACCESO ──────────────────────────────────────────────────── -->
       <template v-else-if="mainTab === 'access'">
 
-        <!-- Zone tabs -->
-        <div class="flex gap-2">
+        <!-- Zone selector - same pill style as Stats -->
+        <div class="flex gap-0.5 p-0.5 rounded-lg bg-gray-100 self-start">
           <button v-for="zone in zones" :key="zone.key"
             @click="activeZoneAccess = zone.key"
-            class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-150"
-            :style="activeZoneAccess === zone.key
-              ? `background:${zone.color};color:#fff;box-shadow:0 2px 8px ${zone.color}40`
-              : `background:${zone.color}10;color:${zone.color}`">
-            <component :is="zone.icon" class="w-4 h-4" />
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150"
+            :class="activeZoneAccess === zone.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+            <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-all duration-150"
+              :style="`background:${activeZoneAccess === zone.key ? zone.color : '#d1d5db'}`"></span>
             {{ zoneNames[zone.key] }}
           </button>
         </div>
@@ -460,8 +537,8 @@
             <!-- DoH -->
             <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-3">
               <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-                  <ShieldCheckIcon class="w-4 h-4 text-orange-500" />
+                <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <ShieldCheckIcon class="w-4 h-4 text-blue-500" />
                 </div>
                 <div>
                   <p class="text-sm font-bold text-gray-800">DNS-over-HTTPS</p>
@@ -482,8 +559,8 @@
             <!-- DNS Stamp -->
             <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-3">
               <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
-                  <span class="text-sm">🔏</span>
+                <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <LockClosedIcon class="w-4 h-4 text-blue-500" />
                 </div>
                 <div>
                   <p class="text-sm font-bold text-gray-800">DNS Stamp</p>
@@ -513,7 +590,7 @@
             <div class="grid grid-cols-3 gap-3">
               <button v-for="plat in PLATFORMS" :key="plat.key"
                 @click="downloadProfile(activeZoneAccess, plat.key)"
-                class="group flex flex-col items-center gap-3 p-5 rounded-2xl border border-gray-100 hover:border-orange-200 hover:bg-orange-50 transition-all duration-150">
+                class="group flex flex-col items-center gap-3 p-5 rounded-2xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all duration-150">
                 <div class="w-10 h-10 rounded-2xl flex items-center justify-center transition-transform duration-150 group-hover:scale-110"
                   :style="`background:#${plat.icon.hex}15`">
                   <svg viewBox="0 0 24 24" class="w-6 h-6"
@@ -543,29 +620,111 @@
             </div>
             <div class="flex flex-wrap gap-2 min-h-[28px]">
               <span v-for="net in zoneNetworks[activeZoneAccess]" :key="net"
-                class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-mono font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-mono font-semibold bg-blue-50 text-blue-700 ring-1 ring-blue-200">
                 {{ net }}
                 <button @click="removeNetwork(activeZoneAccess, net)"
-                  class="text-emerald-400 hover:text-emerald-700 transition-colors leading-none">×</button>
+                  class="text-blue-400 hover:text-blue-700 transition-colors leading-none">×</button>
               </span>
               <span v-if="!zoneNetworks[activeZoneAccess].length" class="text-xs text-gray-400">Sin IPs registradas</span>
             </div>
             <div class="flex gap-2">
               <input v-model="networkInputs[activeZoneAccess]"
                 type="text" placeholder="80.1.2.3 o 192.168.1.0/24"
-                class="flex-1 px-3 py-2 rounded-xl text-xs font-mono border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-gray-700 placeholder-gray-300"
+                class="flex-1 px-3 py-2 rounded-xl text-xs font-mono border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-gray-700 placeholder-gray-300"
                 @keydown.enter="addNetwork(activeZoneAccess)" />
               <button @click="addNetwork(activeZoneAccess)"
-                class="px-3 py-2 rounded-xl text-xs font-bold bg-orange-50 text-orange-500 hover:bg-orange-100 border border-orange-200 transition-colors">
+                class="px-3 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors">
                 Añadir
               </button>
               <button @click="registerNetworks(activeZoneAccess)" :disabled="savingNetworks[activeZoneAccess]"
                 class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white transition-all"
-                :class="savingNetworks[activeZoneAccess] ? 'bg-gray-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'">
+                :class="savingNetworks[activeZoneAccess] ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'">
                 <ArrowPathIcon v-if="savingNetworks[activeZoneAccess]" class="w-3.5 h-3.5 animate-spin" />
                 Guardar
               </button>
             </div>
+          </div>
+
+          <!-- UniFi networks (only when controller is connected) -->
+          <div v-if="unifiNets.length || loadingUnifiNets"
+            class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-bold text-gray-800">Redes del controlador</p>
+                <p class="text-xs text-gray-400 mt-0.5">Redes UniFi que filtran a través de esta zona</p>
+              </div>
+              <button @click="loadUnifiNets"
+                class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+                <ArrowPathIcon class="w-4 h-4" :class="loadingUnifiNets ? 'animate-spin' : ''" />
+              </button>
+            </div>
+
+            <!-- Loading skeleton -->
+            <div v-if="loadingUnifiNets && !unifiNets.length" class="space-y-1.5">
+              <div v-for="i in 3" :key="i" class="h-12 bg-gray-50 rounded-xl animate-pulse"></div>
+            </div>
+
+            <!-- Network list (all networks, toggle per zone) -->
+            <template v-else>
+              <div class="space-y-1.5">
+                <button v-for="net in unifiNets" :key="net.id"
+                  @click="toggleNetZone(net.id)"
+                  class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left"
+                  :class="unifiZoneMap[net.id] === activeZoneAccess
+                    ? 'border-transparent'
+                    : unifiZoneMap[net.id]
+                      ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed'
+                      : 'bg-gray-50 border-gray-100 hover:border-blue-200 hover:bg-blue-50/50'"
+                  :style="unifiZoneMap[net.id] === activeZoneAccess
+                    ? `background:${zones.find(z=>z.key===activeZoneAccess)?.color}0d;border-color:${zones.find(z=>z.key===activeZoneAccess)?.color}30`
+                    : ''"
+                  :title="unifiZoneMap[net.id] && unifiZoneMap[net.id] !== activeZoneAccess ? `Asignada a otra zona` : ''">
+                  <!-- Network icon -->
+                  <svg class="w-4 h-4 flex-shrink-0 transition-colors"
+                    :style="unifiZoneMap[net.id] === activeZoneAccess ? `color:${zones.find(z=>z.key===activeZoneAccess)?.color}` : 'color:#9ca3af'"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="2" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/>
+                    <rect x="9" y="16" width="6" height="6" rx="1"/>
+                    <path d="M5 8v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M12 13v3"/>
+                  </svg>
+                  <!-- Name + meta -->
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold truncate transition-colors"
+                      :style="unifiZoneMap[net.id] === activeZoneAccess ? `color:${zones.find(z=>z.key===activeZoneAccess)?.color}` : 'color:#374151'">
+                      {{ net.name }}
+                    </p>
+                    <p class="text-[10px] text-gray-400">
+                      {{ net.client_count }} cliente{{ net.client_count !== 1 ? 's' : '' }}{{ net.vlan ? ` · VLAN ${net.vlan}` : '' }}{{ net.subnet ? ` · ${net.subnet}` : '' }}
+                    </p>
+                  </div>
+                  <!-- State badge -->
+                  <span v-if="unifiZoneMap[net.id] === activeZoneAccess"
+                    class="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                    :style="`background:${zones.find(z=>z.key===activeZoneAccess)?.color}18;color:${zones.find(z=>z.key===activeZoneAccess)?.color}`">
+                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" :style="`background:${zones.find(z=>z.key===activeZoneAccess)?.color}`"></span>
+                    Esta zona
+                  </span>
+                  <span v-else-if="unifiZoneMap[net.id]"
+                    class="text-[10px] text-gray-400 font-medium flex-shrink-0">Otra zona</span>
+                  <span v-else
+                    class="text-[10px] text-blue-400 font-bold flex-shrink-0 opacity-0 group-hover:opacity-100">+ Añadir</span>
+                </button>
+              </div>
+
+              <!-- Apply button -->
+              <div class="flex items-center gap-3 pt-1 border-t border-gray-50">
+                <button @click="applyNetworkDns" :disabled="savingUnifiNets"
+                  class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-sm"
+                  :class="savingUnifiNets ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'">
+                  <ArrowPathIcon v-if="savingUnifiNets" class="w-3.5 h-3.5 animate-spin" />
+                  <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                  Aplicar DNS en redes
+                </button>
+                <p class="text-[10px] text-gray-400">Configura el DHCP de cada red para que use el DNS de esta zona</p>
+              </div>
+            </template>
           </div>
 
         </template>
@@ -590,7 +749,7 @@ import {
   CloudIcon, ShieldCheckIcon, ArrowPathIcon, CheckCircleIcon,
   ExclamationCircleIcon, ClipboardDocumentIcon, ChevronDownIcon,
   ShieldExclamationIcon, UserGroupIcon, WrenchScrewdriverIcon,
-  GlobeAltIcon,
+  GlobeAltIcon, LockClosedIcon,
 } from '@heroicons/vue/24/outline'
 import {
   siYoutube, siTiktok, siInstagram, siFacebook, siWhatsapp,
@@ -598,6 +757,15 @@ import {
   siDiscord, siSnapchat, siGoogle, siApple, siCloudflare, siAndroid,
   siTelegram, siKahoot, siDuolingo, siKhanacademy, siWikipedia,
   siAkamai, siFastly, siEpicgames, siEa, siPlaystation, siHbo,
+  siZoom, siDropbox,
+  siPinterest, siReddit, siSignal, siVimeo, siSoundcloud, siFigma,
+  siPlex, siNotion, siTrello, siPaypal, siStripe, siCrunchyroll,
+  siTidal, siBandcamp, siAtlassian, siGitlab, siJira, siUbisoft,
+  siViber, siLine, siTumblr, siGoogledrive, siDuckduckgo, siRoku,
+  siRiotgames, siLeagueoflegends, siValorant, siBattledotnet, siMega,
+  siWetransfer, siCoinbase, siBinance, siShopify, siQuizlet, siCoursera,
+  siGooglecloud, siApplemusic, siWebex, siBox, siAsana, siConfluence,
+  siGithub,
 } from 'simple-icons'
 
 // Windows logo path (not in simple-icons)
@@ -637,6 +805,111 @@ const BRAND_ICONS = {
   'Khan Academy':     siKhanacademy,
   'Wikipedia':        siWikipedia,
   'Google Classroom': siGoogle,
+  // Traffic DPI names (UniFi)
+  'Google Services':  siGoogle,
+  'Google Maps':      siGoogle,
+  'Google Play':      siGoogle,
+  'Google Meet':      siGoogle,
+  'Gmail':            siGoogle,
+  'iCloud':           siApple,
+  'Apple Services':   siApple,
+  'Apple Push':       siApple,
+  'Apple Update':     siApple,
+  'Microsoft Office': WINDOWS_ICON,
+  'Microsoft Teams':  WINDOWS_ICON,
+  'Windows Update':   WINDOWS_ICON,
+  'SharePoint':       WINDOWS_ICON,
+  'Office 365':       WINDOWS_ICON,
+  'OneDrive':         WINDOWS_ICON,
+  'Zoom':             siZoom,
+  'Dropbox':          siDropbox,
+  // Social / messaging (extended)
+  'YouTube Music':    siYoutube,
+  'YouTube TV':       siYoutube,
+  'YouTube Live':     siYoutube,
+  'Twitch Stream':    siTwitch,
+  'TikTok Live':      siTiktok,
+  'Instagram Live':   siInstagram,
+  'Facebook Live':    siFacebook,
+  'Facebook Messenger': siFacebook,
+  'Pinterest':        siPinterest,
+  'Tumblr':           siTumblr,
+  'Reddit':           siReddit,
+  'Viber':            siViber,
+  'Line':             siLine,
+  'Signal':           siSignal,
+  'Twitter/X Media':  siX,
+  // Streaming / audio
+  'Amazon Video':     { hex: '00A8E1', path: 'M14.077 5.537a11.555 11.555 0 0 0-6.044 1.692L8.28 7.4C5.882 8.952 4.097 11.247 3.218 14.03a12.43 12.43 0 0 0 .504 8.65c.077.169.147.336.207.5.286.765-.093 1.609-.855 1.902a1.405 1.405 0 0 1-1.88-.857 15.325 15.325 0 0 1-.648-10.696C1.592 9.97 3.69 7.141 6.59 5.22a14.352 14.352 0 0 1 7.49-2.13 14.405 14.405 0 0 1 9.65 3.685c.584.535.624 1.444.09 2.03a1.435 1.435 0 0 1-2.022.09 11.54 11.54 0 0 0-7.72-3.358zm2.847 13.01l.001-.001.001-.001c.517-.491.509-1.316-.018-1.797a1.272 1.272 0 0 0-1.795.018l-1.098 1.048-.96-.914a1.273 1.273 0 0 0-1.796.015 1.297 1.297 0 0 0 .015 1.813l1.86 1.772a1.267 1.267 0 0 0 1.774-.006zm3.916-4.73c-.44 1.11-.997 2.112-1.65 2.98a1.408 1.408 0 0 0 .283 1.959 1.383 1.383 0 0 0 1.942-.285 16.57 16.57 0 0 0 2.09-3.777 1.419 1.419 0 0 0-.852-1.8 1.39 1.39 0 0 0-1.813.923z' },
+  'Prime Video':      { hex: '00A8E1', path: 'M14.077 5.537a11.555 11.555 0 0 0-6.044 1.692L8.28 7.4C5.882 8.952 4.097 11.247 3.218 14.03a12.43 12.43 0 0 0 .504 8.65c.077.169.147.336.207.5.286.765-.093 1.609-.855 1.902a1.405 1.405 0 0 1-1.88-.857 15.325 15.325 0 0 1-.648-10.696C1.592 9.97 3.69 7.141 6.59 5.22a14.352 14.352 0 0 1 7.49-2.13 14.405 14.405 0 0 1 9.65 3.685c.584.535.624 1.444.09 2.03a1.435 1.435 0 0 1-2.022.09 11.54 11.54 0 0 0-7.72-3.358zm2.847 13.01l.001-.001.001-.001c.517-.491.509-1.316-.018-1.797a1.272 1.272 0 0 0-1.795.018l-1.098 1.048-.96-.914a1.273 1.273 0 0 0-1.796.015 1.297 1.297 0 0 0 .015 1.813l1.86 1.772a1.267 1.267 0 0 0 1.774-.006zm3.916-4.73c-.44 1.11-.997 2.112-1.65 2.98a1.408 1.408 0 0 0 .283 1.959 1.383 1.383 0 0 0 1.942-.285 16.57 16.57 0 0 0 2.09-3.777 1.419 1.419 0 0 0-.852-1.8 1.39 1.39 0 0 0-1.813.923z' },
+  'Crunchyroll':      siCrunchyroll,
+  'HBO Max':          siHbo,
+  'Apple Music':      siApplemusic,
+  'Apple Maps':       siApple,
+  'Apple iMessage':   siApple,
+  'Apple App Store':  siApple,
+  'Apple TV':         siApple,
+  'FaceTime':         siApple,
+  'Siri':             siApple,
+  'iCloud Drive':     siApple,
+  'iCloud Photos':    siApple,
+  'Google Play Store': siGoogle,
+  'Google Photos':    siGoogle,
+  'Google Analytics': siGoogle,
+  'Google Workspace': siGoogle,
+  'Google Drive':     siGoogledrive,
+  'Google Cloud':     siGooglecloud,
+  'OneDrive Photos':  WINDOWS_ICON,
+  'Microsoft 365':    WINDOWS_ICON,
+  'Microsoft Teams Video': WINDOWS_ICON,
+  'Zoom Video':       siZoom,
+  'Webex':            siWebex,
+  'Tidal':            siTidal,
+  'SoundCloud':       siSoundcloud,
+  'Bandcamp':         siBandcamp,
+  'Plex':             siPlex,
+  'Vimeo':            siVimeo,
+  'DuckDuckGo':       siDuckduckgo,
+  'Roku':             siRoku,
+  // Productivity / cloud
+  'Box':              siBox,
+  'Mega':             siMega,
+  'WeTransfer':       siWetransfer,
+  'Wetransfer':       siWetransfer,
+  'GitHub':           siGithub,
+  'GitLab':           siGitlab,
+  'Jira':             siJira,
+  'Confluence':       siConfluence,
+  'Atlassian':        siAtlassian,
+  'Figma':            siFigma,
+  'Notion':           siNotion,
+  'Trello':           siTrello,
+  'Asana':            siAsana,
+  'Shopify':          siShopify,
+  'Stripe':           siStripe,
+  'PayPal':           siPaypal,
+  'Coinbase':         siCoinbase,
+  'Binance':          siBinance,
+  'Quizlet':          siQuizlet,
+  'Coursera':         siCoursera,
+  // Gaming (extended)
+  'Roblox Studio':    siRoblox,
+  'Epic Games':       siEpicgames,
+  'Epic Games Launcher': siEpicgames,
+  'Ubisoft':          siUbisoft,
+  'Ubisoft Connect':  siUbisoft,
+  'Blizzard':         siBattledotnet,
+  'Battle.net':       siBattledotnet,
+  'Overwatch':        siBattledotnet,
+  'World of Warcraft': siBattledotnet,
+  'Playstation Network': siPlaystation,
+  'PlayStation Network': siPlaystation,
+  'Riot Games':       siRiotgames,
+  'Riot Client':      siRiotgames,
+  'Valorant':         siValorant,
+  'League of Legends': siLeagueoflegends,
+  'Steam Download':   siSteam,
+  'Origin/EA':        siEa,
   // Infrastructure
   'Amazon / AWS':     { hex: 'FF9900', path: 'M13.356 12.437c-.7.35-1.46.526-2.28.526a5.06 5.06 0 0 1-3.573-1.43 4.836 4.836 0 0 1-1.457-3.556 4.836 4.836 0 0 1 1.457-3.555 5.06 5.06 0 0 1 3.572-1.43c.82 0 1.58.176 2.28.527a4.43 4.43 0 0 1 1.64 1.484l-1.64 1.008a2.725 2.725 0 0 0-1.013-.91 2.873 2.873 0 0 0-1.267-.29 2.88 2.88 0 0 0-2.106.878 2.987 2.987 0 0 0-.878 2.288 2.99 2.99 0 0 0 .878 2.289 2.881 2.881 0 0 0 2.106.878c.468 0 .897-.097 1.267-.29a2.72 2.72 0 0 0 1.013-.912zm3.128-4.63h-2.282V6.21h6.504v1.597H18.42v5.957h-1.934zm6.066 5.957V6.21h1.934v5.958h3.516v1.596zM0 18.756c3.437 2.478 7.505 3.938 11.9 3.938 4.396 0 8.465-1.46 11.9-3.938.246-.18.027-.42-.25-.287-3.435 1.74-7.265 2.72-11.65 2.72-4.384 0-8.215-.98-11.65-2.72-.276-.133-.494.108-.25.287zm23.53-2.597c-.336-.43-2.22-.203-3.065-.102-.257.03-.296-.193-.066-.356 1.5-1.054 3.967-.75 4.253-.396.287.355-.076 2.824-1.488 4.003-.217.182-.424.085-.328-.154.32-.787 1.03-2.565.694-2.995z' },
   'Akamai CDN':       siAkamai,
@@ -714,9 +987,9 @@ const FILTER_GROUPS = [
 
 // ── Main tabs ──────────────────────────────────────────────────────────────
 const mainTabs = [
-  { key: 'stats',  label: 'Estadísticas', emoji: '📊' },
-  { key: 'filter', label: 'Filtrado',     emoji: '🛡️' },
-  { key: 'access', label: 'Acceso',       emoji: '🔗' },
+  { key: 'stats',  label: 'Estadísticas' },
+  { key: 'filter', label: 'Filtrado' },
+  { key: 'access', label: 'Acceso' },
 ]
 const mainTab = ref('stats')
 
@@ -792,7 +1065,7 @@ const blockedByCategory = computed(() => {
   const result = Object.values(groups).sort((a, b) =>
     b.items.reduce((s, i) => s + i.count, 0) - a.items.reduce((s, i) => s + i.count, 0)
   )
-  if (uncategorized.length) result.push({ key: 'other', name: 'Categoría Cloudflare', emoji: '☁️', items: uncategorized })
+  if (uncategorized.length) result.push({ key: 'other', name: 'Sin categorizar', emoji: '🔒', items: uncategorized })
   return result
 })
 
@@ -866,6 +1139,18 @@ function parseWhitelist(key) {
   whitelists.value[key] = [...new Set(whitelistInputs.value[key].split('\n').map(l => l.trim()).filter(Boolean))]
 }
 
+function fmtNum(n) {
+  if (!n) return '0'
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
+  return n.toLocaleString()
+}
+
+function blockRate(app) {
+  const total = app.allowed + app.blocked
+  return total > 0 ? Math.round(app.blocked / total * 100) : 0
+}
+
 function addNetwork(key) {
   const raw = networkInputs.value[key].trim()
   if (!raw) return
@@ -902,6 +1187,9 @@ function initFilterState() {
 async function applyFromToggles() {
   zones.forEach(z => { parseDomains(z.key); parseWhitelist(z.key) })
 
+  // All category IDs owned by the basic toggle groups — any ID not in this set was added via advanced mode
+  const allGroupCats = new Set(FILTER_GROUPS.flatMap(g => [...(g.cfSecurity || []), ...(g.cfContent || [])]))
+
   for (const zone of ['students', 'teachers', 'admin']) {
     const enabledCats = []
     const enabledDoms = []
@@ -910,7 +1198,9 @@ async function applyFromToggles() {
       enabledCats.push(...(group.cfSecurity || []), ...(group.cfContent || []))
       enabledDoms.push(...(group.domains || []))
     }
-    selectedCategories.value[zone] = [...new Set(enabledCats)]
+    // Preserve any categories selected via the advanced panel that don't belong to basic groups
+    const advancedOnly = (selectedCategories.value[zone] || []).filter(id => !allGroupCats.has(id))
+    selectedCategories.value[zone] = [...new Set([...enabledCats, ...advancedOnly])]
     const allGroupDoms = FILTER_GROUPS.flatMap(g => g.domains || [])
     const manualDoms = customDomains.value[zone].filter(d => !allGroupDoms.includes(d))
     customDomains.value[zone] = [...new Set([...manualDoms, ...enabledDoms])]
@@ -1036,7 +1326,7 @@ async function registerNetworks(key) {
   savingNetworks.value[key] = true
   try {
     const r = await callApi({ action: 'register_networks', zone: key, networks: zoneNetworks.value[key] })
-    if (r.ok) toast.success('Redes guardadas en Cloudflare')
+    if (r.ok) toast.success('Redes guardadas')
     else toast.error(r.error || 'Error al guardar redes')
   } catch (e) { toast.error(e.message) }
   finally { savingNetworks.value[key] = false }
@@ -1127,6 +1417,135 @@ function downloadProfile(key, platform) {
   }
 }
 
-onMounted(async () => { await loadConfig(); loadStats() })
-watch(orgSwitchKey, async () => { if (selectedOrgId.value) { await loadConfig(); loadStats() } })
+// ── Traffic (UniFi DPI, optional) ─────────────────────────────────────────
+const trafficData = ref(null)
+
+function fmt(bytes) {
+  if (!bytes) return '0 B'
+  if (bytes >= 1e12) return `${(bytes / 1e12).toFixed(2)} TB`
+  if (bytes >= 1e9)  return `${(bytes / 1e9).toFixed(2)} GB`
+  if (bytes >= 1e6)  return `${(bytes / 1e6).toFixed(0)} MB`
+  if (bytes >= 1e3)  return `${(bytes / 1e3).toFixed(0)} KB`
+  return `${bytes} B`
+}
+
+const maxApp = computed(() => Math.max(1, ...(trafficData.value?.apps || []).map(a => a.total_bytes)))
+function pctApp(bytes) { return Math.round(bytes / maxApp.value * 100) }
+
+const chartW = 600, chartH = 100
+const chartPad = { l: 24, r: 4, t: 4, b: 16 }
+const chartMaxVal = computed(() => {
+  if (!trafficData.value?.chart?.length) return 0
+  return Math.max(...trafficData.value.chart.map(p => Math.max(p.rx, p.tx)))
+})
+function chartPoints(field) {
+  const pts = trafficData.value?.chart || []
+  if (!pts.length) return []
+  const maxV = chartMaxVal.value || 1
+  const w = chartW - chartPad.l - chartPad.r
+  const h = chartH - chartPad.t - chartPad.b
+  return pts.map((p, i) => ({
+    x: chartPad.l + (i / (pts.length - 1 || 1)) * w,
+    y: chartPad.t + h - (p[field] / maxV) * h,
+  }))
+}
+function linePath(field) {
+  const pts = chartPoints(field)
+  if (!pts.length) return ''
+  return pts.reduce((d, p, i) => {
+    if (i === 0) return `M${p.x},${p.y}`
+    const prev = pts[i - 1]
+    const cx = (prev.x + p.x) / 2
+    return `${d} C${cx},${prev.y} ${cx},${p.y} ${p.x},${p.y}`
+  }, '')
+}
+function areaPath(field) {
+  const pts = chartPoints(field)
+  if (!pts.length) return ''
+  const bottom = chartH - chartPad.b
+  return `${linePath(field)} L${pts[pts.length - 1].x},${bottom} L${pts[0].x},${bottom} Z`
+}
+const chartXLabels = computed(() => {
+  const pts = trafficData.value?.chart || []
+  if (!pts.length) return []
+  const idxs = [0, Math.floor(pts.length / 4), Math.floor(pts.length / 2), Math.floor(pts.length * 3 / 4), pts.length - 1]
+  return idxs.map(i => { const t = pts[i]?.time; if (!t) return ''; const d = new Date(t * 1000); return `${d.getHours()}:00` })
+})
+
+async function loadTraffic() {
+  if (!selectedOrgId.value) return
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unifi-api`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: 'get_traffic', org_id: selectedOrgId.value }),
+    })
+    const r = await res.json()
+    if (r.ok) trafficData.value = r
+  } catch { /* UniFi not configured, silently skip */ }
+}
+
+// ── Domain search ──────────────────────────────────────────────────────────
+const domainSearch = ref('')
+
+// ── UniFi network–zone assignment ──────────────────────────────────────────
+const unifiNets       = ref([])
+const unifiZoneMap    = ref({})
+const loadingUnifiNets = ref(false)
+const savingUnifiNets  = ref(false)
+
+function netsForZone(zone) {
+  return unifiNets.value.filter(n => unifiZoneMap.value[n.id] === zone)
+}
+const availableNets = computed(() => unifiNets.value.filter(n => !unifiZoneMap.value[n.id]))
+
+function assignNet(netId) {
+  unifiZoneMap.value = { ...unifiZoneMap.value, [netId]: activeZoneAccess.value }
+}
+function unassignNet(netId) {
+  const m = { ...unifiZoneMap.value }
+  delete m[netId]
+  unifiZoneMap.value = m
+}
+function toggleNetZone(netId) {
+  if (unifiZoneMap.value[netId] && unifiZoneMap.value[netId] !== activeZoneAccess.value) return // assigned to other zone, don't hijack
+  if (unifiZoneMap.value[netId] === activeZoneAccess.value) unassignNet(netId)
+  else assignNet(netId)
+}
+
+async function loadUnifiNets() {
+  if (!selectedOrgId.value) return
+  loadingUnifiNets.value = true
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unifi-api`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: 'get_networks', org_id: selectedOrgId.value }),
+    })
+    const r = await res.json()
+    if (r.ok) { unifiNets.value = r.networks; unifiZoneMap.value = r.zone_map || {} }
+  } catch { /* UniFi not configured */ }
+  finally { loadingUnifiNets.value = false }
+}
+
+async function applyNetworkDns() {
+  savingUnifiNets.value = true
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unifi-api`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: 'apply_network_dns', org_id: selectedOrgId.value, zone_map: unifiZoneMap.value }),
+    })
+    const r = await res.json()
+    if (r.ok) toast.success('DNS aplicado en las redes')
+    else toast.error(r.errors?.[0] || r.error || 'Error al aplicar DNS')
+  } catch (e) { toast.error(e.message) }
+  finally { savingUnifiNets.value = false }
+}
+
+onMounted(async () => { await loadConfig(); loadStats(); loadTraffic(); loadUnifiNets() })
+watch(orgSwitchKey, async () => { if (selectedOrgId.value) { await loadConfig(); loadStats(); loadTraffic(); loadUnifiNets() } })
 </script>
