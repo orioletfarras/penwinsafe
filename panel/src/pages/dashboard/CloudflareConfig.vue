@@ -367,46 +367,86 @@
 
         <template v-else>
 
-          <!-- Per-zone advanced categories -->
+          <!-- Category toggle grid -->
           <div class="card overflow-hidden">
-            <div v-for="(zone, zi) in zones" :key="zone.key"
-              class="px-5 py-5"
-              :class="zi < zones.length - 1 ? 'border-b border-gray-100' : ''">
-              <div class="flex items-center gap-2 mb-3">
-                <span class="w-2 h-2 rounded-full flex-shrink-0" :style="`background:${zone.color}`"></span>
-                <p class="text-[13px] font-semibold" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
+            <!-- Header -->
+            <div class="grid px-5 py-2.5 bg-gray-50 border-b border-gray-100"
+              style="grid-template-columns:1fr repeat(3,90px)">
+              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Categoría</span>
+              <div v-for="zone in zones" :key="zone.key" class="text-center">
+                <p class="text-[10px] font-bold uppercase tracking-wide" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
               </div>
-              <div class="flex gap-1 mb-3">
-                <button v-for="tab in advTabs" :key="tab.key"
-                  @click="activeTab[zone.key] = tab.key"
-                  class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all"
-                  :style="activeTab[zone.key] === tab.key
-                    ? `background:${zone.color};color:#fff`
-                    : 'background:#f3f4f6;color:#9ca3af'">
-                  {{ tab.label }}
+            </div>
+            <!-- Security section -->
+            <div class="px-5 py-2 bg-gray-50 border-b border-gray-100">
+              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Seguridad</span>
+            </div>
+            <div v-for="(cat, ci) in groupCats('security')" :key="cat.id"
+              class="grid px-5 py-3 items-center border-b border-gray-50"
+              style="grid-template-columns:1fr repeat(3,90px)">
+              <span class="text-[12px] font-medium" style="color:#374151">{{ cat.name }}</span>
+              <div v-for="zone in zones" :key="zone.key" class="flex justify-center">
+                <button @click="toggleCat(zone.key, cat.id)"
+                  class="relative w-9 h-[18px] rounded-full transition-all duration-200 focus:outline-none"
+                  :style="isCatSelected(zone.key, cat.id) ? `background:${zone.color}` : 'background:#e5e7eb'">
+                  <span class="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all duration-200"
+                    :class="isCatSelected(zone.key, cat.id) ? 'right-0.5' : 'left-0.5'"></span>
                 </button>
               </div>
-              <div v-if="activeTab[zone.key] === 'security' || activeTab[zone.key] === 'content'" class="grid grid-cols-3 gap-1.5">
-                <label v-for="cat in groupCats(activeTab[zone.key])" :key="cat.id"
-                  class="flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer transition-all text-[11px] font-medium"
-                  :style="isCatSelected(zone.key, cat.id)
-                    ? `background:${zone.color}12;outline:1.5px solid ${zone.color}50;color:#111827`
-                    : 'background:#f9fafb;color:#9ca3af'">
-                  <input type="checkbox" :checked="isCatSelected(zone.key, cat.id)"
-                    @change="toggleCat(zone.key, cat.id)"
-                    class="rounded flex-shrink-0" :style="`accent-color:${zone.color}`" />
-                  {{ cat.name }}
-                </label>
+            </div>
+            <!-- Content section -->
+            <div class="px-5 py-2 bg-gray-50 border-b border-gray-100">
+              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Contenido</span>
+            </div>
+            <div v-for="(cat, ci) in groupCats('content')" :key="cat.id"
+              class="grid px-5 py-3 items-center"
+              :class="ci < groupCats('content').length - 1 ? 'border-b border-gray-50' : ''"
+              style="grid-template-columns:1fr repeat(3,90px)">
+              <span class="text-[12px] font-medium" style="color:#374151">{{ cat.name }}</span>
+              <div v-for="zone in zones" :key="zone.key" class="flex justify-center">
+                <button @click="toggleCat(zone.key, cat.id)"
+                  class="relative w-9 h-[18px] rounded-full transition-all duration-200 focus:outline-none"
+                  :style="isCatSelected(zone.key, cat.id) ? `background:${zone.color}` : 'background:#e5e7eb'">
+                  <span class="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all duration-200"
+                    :class="isCatSelected(zone.key, cat.id) ? 'right-0.5' : 'left-0.5'"></span>
+                </button>
               </div>
-              <div v-else-if="activeTab[zone.key] === 'blocked'">
-                <textarea v-model="domainInputs[zone.key]" @blur="parseDomains(zone.key)"
-                  rows="4" placeholder="redesocial.com&#10;*.streaming.net"
-                  class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
+            </div>
+          </div>
+
+          <!-- Blocked / allowed domains per zone (expandable) -->
+          <div class="card overflow-hidden">
+            <button @click="filterExpanded = !filterExpanded"
+              class="w-full flex items-center justify-between px-5 py-4 text-[12px] font-semibold hover:bg-gray-50 transition-colors"
+              :class="filterExpanded ? 'text-blue-600' : 'text-gray-500'">
+              <div class="flex items-center gap-2">
+                <WrenchScrewdriverIcon class="w-3.5 h-3.5" />
+                Dominios bloqueados / permitidos
               </div>
-              <div v-else-if="activeTab[zone.key] === 'allowed'">
-                <textarea v-model="whitelistInputs[zone.key]" @blur="parseWhitelist(zone.key)"
-                  rows="4" placeholder="recursoseducativos.com&#10;*.google.com"
-                  class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
+              <ChevronDownIcon class="w-4 h-4 transition-transform duration-200" :class="filterExpanded ? 'rotate-180' : ''" />
+            </button>
+            <div v-if="filterExpanded" class="border-t border-gray-100">
+              <div v-for="(zone, zi) in zones" :key="zone.key"
+                class="px-5 py-5"
+                :class="zi < zones.length - 1 ? 'border-b border-gray-50' : ''">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="w-2 h-2 rounded-full flex-shrink-0" :style="`background:${zone.color}`"></span>
+                  <p class="text-[13px] font-semibold" :style="`color:${zone.color}`">{{ zoneNames[zone.key] }}</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <p class="text-[11px] font-semibold text-gray-500 mb-1.5">Bloqueados</p>
+                    <textarea v-model="domainInputs[zone.key]" @blur="parseDomains(zone.key)"
+                      rows="4" placeholder="redesocial.com&#10;*.streaming.net"
+                      class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
+                  </div>
+                  <div>
+                    <p class="text-[11px] font-semibold text-gray-500 mb-1.5">Permitidos</p>
+                    <textarea v-model="whitelistInputs[zone.key]" @blur="parseWhitelist(zone.key)"
+                      rows="4" placeholder="recursoseducativos.com&#10;*.google.com"
+                      class="w-full px-3 py-2.5 rounded-xl text-xs font-mono outline-none resize-none border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all text-gray-700 placeholder-gray-300"></textarea>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
