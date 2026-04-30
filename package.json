@@ -1,6 +1,6 @@
 {
   "name": "penwinsafe",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Navegador seguro con filtrado DNS permanente vía PenwinSafe",
   "main": "main.js",
   "scripts": {
