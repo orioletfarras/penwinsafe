@@ -19,6 +19,12 @@
     <div v-if="showInvite" class="card p-5">
       <h2 class="text-[13px] font-semibold mb-4" style="color:#111827">Nuevo usuario</h2>
       <div class="flex gap-3">
+        <input v-model="inviteName" type="text" placeholder="Nombre"
+          class="px-3 py-2 rounded-lg text-[13px] outline-none transition-all"
+          style="border:1px solid #d1d5db;color:#111827;width:160px"
+          @focus="e => e.target.style.borderColor='#006fff'"
+          @blur="e => e.target.style.borderColor='#d1d5db'"
+          @keydown.enter="doInvite" />
         <input v-model="inviteEmail" type="email" placeholder="email@colegio.com"
           class="flex-1 px-3 py-2 rounded-lg text-[13px] outline-none transition-all"
           style="border:1px solid #d1d5db;color:#111827"
@@ -140,6 +146,7 @@ import Skeleton from '../../components/Skeleton.vue'
 const loading     = ref(true)
 const users       = ref([])
 const showInvite  = ref(false)
+const inviteName  = ref('')
 const inviteEmail = ref('')
 const inviteRole  = ref('admin')
 const inviting    = ref(false)
@@ -181,10 +188,11 @@ async function doInvite() {
   if (!inviteEmail.value.trim()) return
   inviting.value = true
   inviteMsg.value = ''
-  const result = await call('invite', { email: inviteEmail.value.trim(), role: inviteRole.value })
+  const result = await call('invite', { email: inviteEmail.value.trim(), name: inviteName.value.trim(), role: inviteRole.value })
   if (result.ok) {
     inviteMsg.value = `Invitación enviada a ${result.email}. Recibirá un email para establecer su contraseña.`
     inviteOk.value = true
+    inviteName.value = ''
     inviteEmail.value = ''
     await loadUsers()
   } else {

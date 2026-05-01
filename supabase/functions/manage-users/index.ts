@@ -98,9 +98,10 @@ serve(async (req) => {
 
     if (existing_member) return json({ error: 'Este usuario ya pertenece a esta organización' })
 
+    const name = (params.name as string)?.trim() || email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
     const { error: insertErr } = await supabase
       .from('admin_users')
-      .insert({ id: authUser!.id, org_id: targetOrg, role })
+      .insert({ id: authUser!.id, org_id: targetOrg, role, email, name })
 
     if (insertErr) return json({ error: insertErr.message })
 
