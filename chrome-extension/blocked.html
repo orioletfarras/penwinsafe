@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sitio bloqueado · PenwinSafe</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      background: #f9fafb;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #111827;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 48px 40px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      background: #fef2f2;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .domain {
+      font-size: 13px;
+      font-family: ui-monospace, monospace;
+      color: #6b7280;
+      background: #f3f4f6;
+      padding: 6px 12px;
+      border-radius: 8px;
+      display: inline-block;
+      margin: 12px 0 8px;
+      word-break: break-all;
+    }
+    .desc { font-size: 13px; color: #9ca3af; margin-top: 8px; line-height: 1.5; }
+    .logo {
+      margin-top: 32px;
+      font-size: 11px;
+      color: #d1d5db;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .logo-dot {
+      width: 18px; height: 18px;
+      background: #006fff;
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 10px; font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">
+      <svg width="28" height="28" fill="none" stroke="#dc2626" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    <h1>Sitio bloqueado</h1>
+    <div class="domain" id="domain">—</div>
+    <p class="desc" id="desc">Este sitio web está bloqueado por la política de filtrado del centro educativo.</p>
+    <div class="logo">
+      <div class="logo-dot">P</div>
+      PenwinSafe · Protección activa
+    </div>
+  </div>
+  <script>
+    const p = new URLSearchParams(location.search)
+    const url = p.get('url') || ''
+    const reason = p.get('reason') || ''
+    const query = p.get('q') || ''
+    try {
+      document.getElementById('domain').textContent = new URL(url).hostname || url
+    } catch {
+      document.getElementById('domain').textContent = query ? `"${query}"` : url
+    }
+    if (reason === 'keyword_filter' && query) {
+      document.getElementById('desc').textContent = `La búsqueda "${query}" contiene contenido no permitido por la política del centro.`
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      width: 300px;
+      background: #fff;
+      color: #111827;
+    }
+
+    /* Header */
+    .header {
+      background: #0f172a;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo { width: 28px; height: 28px; background: #006fff; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+    .header-text p:first-child { font-size: 13px; font-weight: 700; color: #f8fafc; }
+    .header-text p:last-child { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 1px; }
+
+    /* Status badge */
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .dot.active { background: #16a34a; animation: pulse 2s infinite; }
+    .dot.inactive { background: #9ca3af; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* Activated view */
+    .info { padding: 16px; }
+    .info-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .info-label { font-size: 11px; color: #9ca3af; }
+    .info-value { font-size: 12px; font-weight: 600; color: #374151; max-width: 160px; text-align: right; word-break: break-all; }
+
+    /* Activation form */
+    .form { padding: 16px; }
+    .form p { font-size: 12px; color: #6b7280; margin-bottom: 14px; line-height: 1.5; }
+    .input {
+      width: 100%; padding: 8px 10px; border-radius: 8px;
+      border: 1px solid #d1d5db; font-size: 12px; color: #111827;
+      outline: none; margin-bottom: 8px; font-family: inherit;
+    }
+    .input:focus { border-color: #006fff; }
+    .btn {
+      width: 100%; padding: 9px; border-radius: 8px;
+      background: #006fff; color: #fff; border: none;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error { font-size: 11px; color: #dc2626; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">P</div>
+    <div class="header-text">
+      <p>PenwinSafe</p>
+      <p>Extensión de Chrome</p>
+    </div>
+  </div>
+
+  <!-- Activated -->
+  <div id="view-active" style="display:none">
+    <div class="status">
+      <div class="dot active"></div>
+      <span style="color:#16a34a">Protección activa</span>
+    </div>
+    <div class="info">
+      <div class="info-row">
+        <span class="info-label">Dispositivo</span>
+        <span class="info-value" id="info-device">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Centro</span>
+        <span class="info-value" id="info-org">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Not activated -->
+  <div id="view-inactive" style="display:none">
+    <div class="status">
+      <div class="dot inactive"></div>
+      <span style="color:#9ca3af">Sin activar</span>
+    </div>
+    <div class="form">
+      <p>Introduce el código de centro y el nombre de este dispositivo para activar la protección.</p>
+      <input class="input" id="input-name" placeholder="Nombre del dispositivo (ej. Aula 3 PC 1)" />
+      <input class="input" id="input-code" placeholder="Código de centro (ej. ABC123)" style="text-transform:uppercase" />
+      <button class="btn" id="btn-activate">Activar</button>
+      <p class="error" id="error-msg" style="display:none"></p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
