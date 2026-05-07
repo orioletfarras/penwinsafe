@@ -2,8 +2,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { supabase } from '../lib/supabase'
 
 const routes = [
-  { path: '/',        name: 'home',     component: () => import('../pages/Landing.vue') },
-  { path: '/login',   name: 'login',    component: () => import('../pages/Login.vue') },
+  { path: '/',          name: 'home',      component: () => import('../pages/Landing.vue') },
+  { path: '/login',     name: 'login',     component: () => import('../pages/Login.vue') },
+  { path: '/privacy',   name: 'privacy',   component: () => import('../pages/PrivacyPolicy.vue') },
+  { path: '/solicitar', name: 'solicitar', component: () => import('../pages/Solicitar.vue') },
+  { path: '/contratar', name: 'contratar', component: () => import('../pages/Contratar.vue') },
   {
     path: '/dashboard',
     component: () => import('../pages/dashboard/Layout.vue'),
