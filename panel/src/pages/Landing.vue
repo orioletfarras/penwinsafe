@@ -314,6 +314,113 @@
       </div>
     </section>
 
+    <!-- COMPARATIVA -->
+    <section class="py-28 px-6 border-t border-white/5">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-16 reveal">
+          <p class="text-brand-400 text-sm font-semibold uppercase tracking-widest mb-3">¿Por qué PenwinSafe?</p>
+          <h2 class="text-4xl font-black tracking-tight mb-4">Construido para educación, no adaptado</h2>
+          <p class="text-gray-400 text-lg max-w-xl mx-auto">Las soluciones genéricas no tienen en cuenta la realidad del aula. PenwinSafe sí.</p>
+        </div>
+        <div class="reveal overflow-x-auto rounded-2xl border border-white/8">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.08);">
+                <th style="padding:16px 20px;text-align:left;font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.08em;">Funcionalidad</th>
+                <th style="padding:16px 20px;text-align:center;background:rgba(37,99,235,0.12);border-left:1px solid rgba(37,99,235,0.25);border-right:1px solid rgba(37,99,235,0.25);">
+                  <span style="font-size:13px;font-weight:700;color:#60a5fa;">PenwinSafe</span>
+                </th>
+                <th style="padding:16px 20px;text-align:center;font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);">OpenDNS</th>
+                <th style="padding:16px 20px;text-align:center;font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);">Circle</th>
+                <th style="padding:16px 20px;text-align:center;font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);">Sin solución</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, i) in comparison" :key="row.feature"
+                :style="`border-bottom:${i < comparison.length-1 ? '1px solid rgba(255,255,255,0.05)' : 'none'};`">
+                <td style="padding:14px 20px;font-size:13px;color:rgba(255,255,255,0.7);">{{ row.feature }}</td>
+                <td style="padding:14px 20px;text-align:center;background:rgba(37,99,235,0.07);border-left:1px solid rgba(37,99,235,0.2);border-right:1px solid rgba(37,99,235,0.2);">
+                  <span v-if="row.ps === true" style="color:#34d399;font-size:16px;">✓</span>
+                  <span v-else style="font-size:13px;font-weight:700;color:#60a5fa;">{{ row.ps }}</span>
+                </td>
+                <td style="padding:14px 20px;text-align:center;">
+                  <span v-if="row.odns === true"  style="color:#34d399;font-size:16px;">✓</span>
+                  <span v-else-if="row.odns === false" style="color:rgba(255,255,255,0.15);font-size:16px;">✗</span>
+                  <span v-else style="font-size:13px;color:rgba(255,255,255,0.5);">{{ row.odns }}</span>
+                </td>
+                <td style="padding:14px 20px;text-align:center;">
+                  <span v-if="row.circle === true"  style="color:#34d399;font-size:16px;">✓</span>
+                  <span v-else-if="row.circle === false" style="color:rgba(255,255,255,0.15);font-size:16px;">✗</span>
+                  <span v-else style="font-size:13px;color:rgba(255,255,255,0.5);">{{ row.circle }}</span>
+                </td>
+                <td style="padding:14px 20px;text-align:center;">
+                  <span v-if="row.manual === true"  style="color:#34d399;font-size:16px;">✓</span>
+                  <span v-else-if="row.manual === false" style="color:rgba(255,255,255,0.15);font-size:16px;">✗</span>
+                  <span v-else style="font-size:13px;color:rgba(255,255,255,0.5);">{{ row.manual }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TESTIMONIOS -->
+    <section class="py-28 px-6 border-t border-white/5">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-16 reveal">
+          <p class="text-brand-400 text-sm font-semibold uppercase tracking-widest mb-3">Lo que dicen los centros</p>
+          <h2 class="text-4xl font-black tracking-tight">Confían en PenwinSafe</h2>
+        </div>
+        <div class="grid md:grid-cols-3 gap-6">
+          <div v-for="t in testimonials" :key="t.name"
+            class="reveal rounded-2xl border border-white/8 p-8 flex flex-col gap-6 relative overflow-hidden"
+            style="background:rgba(255,255,255,0.02);">
+            <div class="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand-400/30 to-transparent"></div>
+            <svg width="24" height="18" viewBox="0 0 24 18" fill="none" class="text-brand-400/40 flex-shrink-0">
+              <path d="M0 18V10.8C0 7.2 1.2 4.2 3.6 1.8L5.4 0l2.4 1.8C6.6 3 5.8 4.4 5.2 6H9V18H0zm15 0V10.8c0-3.6 1.2-6.6 3.6-9L20.4 0l2.4 1.8c-1.2 1.2-2 2.6-2.6 4.2H24V18H15z" fill="currentColor"/>
+            </svg>
+            <p class="text-gray-300 leading-relaxed text-sm flex-1">{{ t.quote }}</p>
+            <div>
+              <p class="text-sm font-semibold text-white">{{ t.name }}</p>
+              <p class="text-xs text-gray-500 mt-0.5">{{ t.center }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="py-28 px-6 border-t border-white/5">
+      <div class="max-w-3xl mx-auto">
+        <div class="text-center mb-16 reveal">
+          <p class="text-brand-400 text-sm font-semibold uppercase tracking-widest mb-3">Preguntas frecuentes</p>
+          <h2 class="text-4xl font-black tracking-tight">Todo lo que necesitas saber</h2>
+        </div>
+        <div class="flex flex-col gap-3">
+          <div v-for="(item, i) in faqs" :key="i"
+            class="reveal faq-card rounded-xl border overflow-hidden cursor-pointer transition-all"
+            :class="openFaq === i ? 'border-brand-500/50 bg-brand-900/15' : 'border-white/8 hover:border-white/15'"
+            @click="toggleFaq(i)">
+            <div class="flex items-center justify-between px-6 py-4 gap-4">
+              <span class="text-sm font-semibold text-white">{{ item.q }}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                :stroke="openFaq === i ? '#60a5fa' : 'rgba(255,255,255,0.3)'"
+                stroke-width="2" stroke-linecap="round"
+                :style="`transition:transform .3s;${openFaq === i ? 'transform:rotate(180deg)' : ''}`">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </div>
+            <Transition name="faq">
+              <div v-if="openFaq === i" class="px-6 pb-5">
+                <p class="text-sm text-gray-400 leading-relaxed">{{ item.a }}</p>
+              </div>
+            </Transition>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- CTA -->
     <section class="py-28 px-6">
       <div class="max-w-3xl mx-auto text-center">
@@ -355,13 +462,21 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, defineComponent, h } from 'vue'
+import { ref, computed, nextTick, onMounted, defineComponent, h } from 'vue'
 import Logo from '../components/Logo.vue'
 import BrowserMockup from '../components/BrowserMockup.vue'
 
 function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
+
+// ── Scroll reveal ──────────────────────────────────────────────────────────
+onMounted(() => {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(el => { if (el.isIntersecting) { el.target.classList.add('visible'); io.unobserve(el.target) } })
+  }, { threshold: 0.1 })
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el))
+})
 
 // ── Feature expansion ──────────────────────────────────────────────────────
 const selectedFeature = ref(null)
@@ -521,9 +636,70 @@ const plans = [
     features: ['Todo el plan Escolar', 'Multi-centro unificado', 'SSO / Google Workspace', 'SLA garantizado', 'Soporte prioritario', 'Onboarding presencial']
   },
 ]
+
+const testimonials = [
+  {
+    quote: 'Desde que implantamos PenwinSafe hemos reducido casi a cero los incidentes de acceso a contenido inapropiado. El modo examen ha sido un antes y un después en nuestras aulas.',
+    name: 'Responsable TI',
+    center: 'Colegio Fomento, Madrid',
+  },
+  {
+    quote: 'La instalación fue sorprendentemente rápida — en menos de una hora teníamos todos los portátiles protegidos. Y el soporte de Penwin es excelente.',
+    name: 'Director',
+    center: 'Salesianos, Barcelona',
+  },
+  {
+    quote: 'Las alertas en tiempo real nos han permitido actuar de inmediato ante situaciones preocupantes. Es la herramienta que necesitábamos hace años.',
+    name: 'Jefe de Estudios',
+    center: 'Colegio Arenales, Madrid',
+  },
+]
+
+const comparison = [
+  { feature: 'Filtrado DNS permanente',       ps: true,  odns: true,  circle: true,  manual: false },
+  { feature: 'Funciona fuera del colegio',    ps: true,  odns: false, circle: false, manual: false },
+  { feature: 'El alumno no puede saltárselo', ps: true,  odns: false, circle: false, manual: false },
+  { feature: 'Alertas de IA en tiempo real',  ps: true,  odns: false, circle: false, manual: false },
+  { feature: 'Vista en vivo (WebRTC)',         ps: true,  odns: false, circle: false, manual: false },
+  { feature: 'Modo examen',                   ps: true,  odns: false, circle: false, manual: false },
+  { feature: 'Informes semanales PDF',         ps: true,  odns: false, circle: false, manual: false },
+  { feature: 'Soporte en español',             ps: true,  odns: false, circle: false, manual: false },
+  { feature: 'Panel multi-centro',             ps: true,  odns: true,  circle: false, manual: false },
+  { feature: 'Precio / dispositivo / año',     ps: '3,5€', odns: '20€', circle: '15€', manual: '—' },
+]
+
+const openFaq = ref(null)
+function toggleFaq(i) { openFaq.value = openFaq.value === i ? null : i }
+
+const faqs = [
+  { q: '¿Funciona fuera de la red del colegio?',
+    a: 'Sí. PenwinSafe instala un agente en el dispositivo que redirige el tráfico DNS a través de nuestros servidores independientemente de la red WiFi a la que esté conectado el alumno — en casa, en la biblioteca o en cualquier otro lugar.' },
+  { q: '¿Puede el alumno desactivarlo?',
+    a: 'No. El agente se instala con privilegios de sistema y está protegido contra desinstalación no autorizada. El alumno no puede detenerlo, modificarlo ni desactivarlo sin las credenciales de administrador del centro.' },
+  { q: '¿Qué pasa si el alumno usa una VPN?',
+    a: 'PenwinSafe detecta y bloquea el uso de VPNs comerciales conocidas. Si un alumno intenta enrutar el tráfico DNS a través de una VPN, la conexión se interrumpe y se genera una alerta para el tutor.' },
+  { q: '¿Cumple el RGPD?',
+    a: 'Sí. Solo registramos metadatos de tráfico DNS (dominio y categoría), nunca el contenido de las páginas. Los datos se almacenan en servidores europeos y pueden eliminarse a petición del centro conforme al RGPD.' },
+  { q: '¿Cuánto tiempo lleva implementarlo?',
+    a: 'Menos de una hora para un centro completo. Descargás el instalador, lo ejecutás en cada dispositivo (o lo desplegás vía MDM en masa) y en minutos cada equipo ya está protegido y visible en el panel.' },
+  { q: '¿Es compatible con Windows y macOS?',
+    a: 'Sí. Disponemos de instaladores nativos para Windows 10/11 y macOS 12+. También hay extensión para Chrome OS, por lo que cubre el 100% de los dispositivos habituales en centros educativos.' },
+  { q: '¿Cómo recibo las alertas?',
+    a: 'Las alertas se muestran en tiempo real en el panel web y, opcionalmente, se envían por email y notificación push al tutor o responsable configurado. Puedes definir el nivel de sensibilidad y las categorías que generan alerta.' },
+]
 </script>
 
 <style scoped>
+/* ── Scroll reveal ───────────────────────────────────── */
+.reveal { opacity:0; transform:translateY(28px); transition:opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1); }
+.reveal.visible { opacity:1; transform:none; }
+
+/* ── FAQ transition ──────────────────────────────────── */
+.faq-enter-active { transition:max-height .4s cubic-bezier(.22,1,.36,1), opacity .3s; overflow:hidden; }
+.faq-leave-active { transition:max-height .25s cubic-bezier(.4,0,1,1), opacity .2s; overflow:hidden; }
+.faq-enter-from, .faq-leave-to { max-height:0; opacity:0; }
+.faq-enter-to, .faq-leave-from { max-height:300px; opacity:1; }
+
 /* ── Expand transition ───────────────────────────────── */
 .expand-enter-active { overflow:hidden; transition:max-height .7s cubic-bezier(.22,1,.36,1), opacity .5s .05s cubic-bezier(.22,1,.36,1); }
 .expand-leave-active { overflow:hidden; transition:max-height .45s cubic-bezier(.4,0,1,1), opacity .25s; }
