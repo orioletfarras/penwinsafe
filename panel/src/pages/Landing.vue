@@ -11,6 +11,11 @@
           <a @click.prevent="scrollTo('pricing')"  href="#pricing"  class="hover:text-white transition-colors cursor-pointer">Precios</a>
         </div>
         <div class="flex items-center gap-3">
+          <a href="https://penwin.org" target="_blank"
+            class="hidden md:inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-colors">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+            penwin.org
+          </a>
           <router-link to="/login"
             class="text-sm font-semibold bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg transition-colors">
             Acceder al panel
@@ -340,7 +345,10 @@
       <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <Logo :size="28" text-class="text-base text-white" />
         <p class="text-sm text-gray-600">© {{ new Date().getFullYear() }} Penwin · Todos los derechos reservados</p>
-        <a href="mailto:hola@penwin.org" class="text-sm text-gray-600 hover:text-white transition-colors">hola@penwin.org</a>
+        <div class="flex items-center gap-5">
+          <a href="https://penwin.org" target="_blank" class="text-sm text-gray-600 hover:text-white transition-colors">penwin.org</a>
+          <a href="mailto:hola@penwin.org" class="text-sm text-gray-600 hover:text-white transition-colors">hola@penwin.org</a>
+        </div>
       </div>
     </footer>
   </div>
