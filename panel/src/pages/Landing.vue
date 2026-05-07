@@ -169,21 +169,70 @@
             </div>
             <h3 class="text-xl font-bold mb-3">Alertas inteligentes con IA</h3>
             <p class="text-gray-400 leading-relaxed">
-              Claude analiza cada búsqueda en tiempo real. Si detecta patrones preocupantes — acoso, autolesión, violencia —
+              La IA analiza cada búsqueda en tiempo real. Si detecta patrones preocupantes — acoso, autolesión, violencia —
               genera una alerta inmediata para el tutor con contexto y recomendaciones.
             </p>
           </div>
         </div>
 
         <!-- Feature grid -->
-        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid md:grid-cols-2 lg:grid-cols-4" style="gap:3px;">
           <div v-for="f in features" :key="f.title"
-            class="rounded-xl border border-white/8 hover:border-white/15 bg-white/3 hover:bg-white/5 p-5 transition-all">
-            <div class="text-2xl mb-3">{{ f.icon }}</div>
+            :class="['rounded-none border-0 p-5 cursor-pointer transition-all relative',
+              selectedFeature?.title === f.title
+                ? 'bg-brand-900/30 outline outline-1 outline-brand-500/60 z-10'
+                : 'bg-white/3 hover:bg-white/6']"
+            @click="toggleFeature(f)">
+            <div class="text-brand-400 mb-3" v-html="f.icon"></div>
             <h3 class="text-sm font-semibold text-white mb-2">{{ f.title }}</h3>
             <p class="text-xs text-gray-500 leading-relaxed">{{ f.desc }}</p>
+            <div :class="['absolute bottom-3 right-3 transition-transform duration-300',
+              selectedFeature?.title === f.title ? 'rotate-180' : '']">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                :stroke="selectedFeature?.title === f.title ? 'rgba(96,165,250,0.7)' : 'rgba(255,255,255,0.2)'"
+                stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
           </div>
         </div>
+
+        <!-- Panel de expansión -->
+        <Transition name="expand">
+          <div v-if="selectedFeature" :key="selectedFeature.title" id="feature-panel"
+            style="border-top:2px solid rgba(59,130,246,0.45);overflow:hidden;">
+            <div class="feat-panel-inner">
+              <!-- Izquierda -->
+              <div class="feat-col-left">
+                <div class="text-brand-400 mb-5" v-html="selectedFeature.iconLg"></div>
+                <h3 style="font-size:clamp(1.4rem,2.5vw,1.9rem);font-weight:800;letter-spacing:-.02em;color:#fff;margin-bottom:14px;">
+                  {{ selectedFeature.title }}
+                </h3>
+                <p style="font-size:14px;color:rgba(255,255,255,0.5);line-height:1.75;margin-bottom:32px;max-width:340px;">
+                  {{ selectedFeature.detail }}
+                </p>
+                <router-link to="/solicitar"
+                  class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors text-sm">
+                  Solicitar demo →
+                </router-link>
+              </div>
+              <!-- Derecha -->
+              <div class="feat-col-right">
+                <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,0.28);margin-bottom:28px;">
+                  Qué incluye
+                </p>
+                <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0;">
+                  <li v-for="(item, i) in selectedFeature.features" :key="item"
+                    class="feat-item"
+                    :style="`animation-delay:${0.08 + i * 0.07}s`">
+                    <span class="feat-check">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" class="text-brand-400"><path d="M20 6L9 17l-5-5"/></svg>
+                    </span>
+                    <span style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.5;">{{ item }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </Transition>
       </div>
     </section>
 
@@ -219,7 +268,7 @@
         <div class="text-center mb-16">
           <p class="text-brand-400 text-sm font-semibold uppercase tracking-widest mb-3">Precios</p>
           <h2 class="text-4xl font-black tracking-tight mb-4">Transparente y escalable</h2>
-          <p class="text-gray-400 text-lg">Precio por dispositivo al mes. Sin permanencia.</p>
+          <p class="text-gray-400 text-lg">Precio por dispositivo al año. Sin permanencia.</p>
         </div>
         <div class="grid md:grid-cols-3 gap-6 items-start">
           <div v-for="plan in plans" :key="plan.name"
@@ -238,7 +287,7 @@
             <p class="text-sm text-gray-400 mb-2">{{ plan.name }}</p>
             <div class="flex items-baseline gap-1 mb-1">
               <span class="text-4xl font-black text-white">{{ plan.price }}</span>
-              <span v-if="plan.price !== 'Custom'" class="text-gray-500 text-sm">/dispositivo/mes</span>
+              <span v-if="plan.price !== 'Custom'" class="text-gray-500 text-sm">/dispositivo/año</span>
             </div>
             <p class="text-xs text-gray-600 mb-6">{{ plan.sub }}</p>
             <ul class="space-y-2.5 flex-1 mb-8">
@@ -247,13 +296,13 @@
                 {{ item }}
               </li>
             </ul>
-            <a href="mailto:hola@penwin.org"
+            <a href="/solicitar"
               :class="['text-center text-sm font-semibold py-3 rounded-xl transition-all',
                 plan.featured
                   ? 'bg-brand-600 hover:bg-brand-500 text-white hover:shadow-lg hover:shadow-brand-600/25'
                   : 'border border-white/10 hover:border-white/20 hover:bg-white/5 text-white']"
             >
-              Contactar
+              Solicitar
             </a>
           </div>
         </div>
@@ -277,9 +326,9 @@
           <p class="text-gray-400 mb-8 text-lg">
             Demo gratuita. Lo configuramos juntos en tu colegio en menos de una hora.
           </p>
-          <a href="mailto:hola@penwin.org"
+          <a href="/solicitar"
             class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold px-8 py-4 rounded-xl transition-all hover:shadow-xl hover:shadow-brand-600/30 text-sm">
-            Contactar con Penwin
+            Solicitar demo o trial gratuito
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </a>
         </div>
@@ -298,12 +347,24 @@
 </template>
 
 <script setup>
-import { computed, defineComponent, h } from 'vue'
+import { ref, computed, nextTick, defineComponent, h } from 'vue'
 import Logo from '../components/Logo.vue'
 import BrowserMockup from '../components/BrowserMockup.vue'
 
 function scrollTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// ── Feature expansion ──────────────────────────────────────────────────────
+const selectedFeature = ref(null)
+function toggleFeature(f) {
+  const isClosing = selectedFeature.value?.title === f.title
+  selectedFeature.value = isClosing ? null : f
+  if (!isClosing) {
+    nextTick(() => {
+      document.getElementById('feature-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
+  }
 }
 
 // ── OS detection ──────────────────────────────────────────────────────────
@@ -349,15 +410,75 @@ const stats = [
   { value: '24/7', label: 'Protección activa' },
 ]
 
+const svgOpen = (w) => '<svg width="' + w + '" height="' + w + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (w <= 22 ? 1.8 : 1.5) + '" stroke-linecap="round" stroke-linejoin="round">'
+const svgClose = '<' + '/svg>'
+const I = (w, paths) => svgOpen(w) + paths + svgClose
+
 const features = [
-  { icon: '👁️', title: 'Vista en vivo',       desc: 'Conecta en remoto con WebRTC y ve en tiempo real lo que hace cada alumno.' },
-  { icon: '⏱️', title: 'Horarios de acceso',  desc: 'Define cuándo pueden navegar. Fuera del horario, el navegador bloquea.' },
-  { icon: '🔒', title: 'Modo examen',         desc: 'Bloquea todas las pestañas excepto las URLs que tú autorices.' },
-  { icon: '📊', title: 'Informes semanales',  desc: 'La IA genera un PDF por alumno cada semana para el tutor.' },
-  { icon: '🏫', title: 'Multi-centro',        desc: 'Gestiona varios colegios desde un único panel.' },
-  { icon: '⚙️', title: 'Config remota',       desc: 'Actualiza filtros y listas sin tocar físicamente ningún PC.' },
-  { icon: '🔍', title: 'Historial búsquedas', desc: 'Captura lo que buscan en Google, YouTube y Bing con categorización IA.' },
-  { icon: '🚨', title: 'Alertas inmediatas',  desc: 'Notificación en segundos cuando se detecta contenido preocupante.' },
+  {
+    icon:   I(22, '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
+    iconLg: I(40, '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
+    title: 'Vista en vivo',
+    desc:   'Conecta en remoto con WebRTC y ve en tiempo real lo que hace cada alumno.',
+    detail: 'Conecta con cualquier dispositivo en tiempo real usando WebRTC, directamente desde el panel. Sin instalar nada extra en el ordenador del tutor.',
+    features: ['Conexión WebRTC peer-to-peer sin servidor intermediario', 'Vista del escritorio completo en tiempo real', 'Sin latencia apreciable en red local', 'Cierre de sesión del alumno con un clic', 'Compatible con Windows y macOS'],
+  },
+  {
+    icon:   I(22, '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
+    iconLg: I(40, '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
+    title: 'Horarios de acceso',
+    desc:   'Define cuándo pueden navegar. Fuera del horario, el navegador bloquea.',
+    detail: 'Define ventanas de tiempo en las que los alumnos pueden navegar. Fuera de ese horario, el agente activa el bloqueo automáticamente.',
+    features: ['Configuración por aula o grupo de dispositivos', 'Horarios diferenciados por día de la semana', 'Bloqueo inmediato al salir de la ventana horaria', 'Excepciones puntuales por dispositivo', 'Activación y desactivación remotas al instante'],
+  },
+  {
+    icon:   I(22, '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>'),
+    iconLg: I(40, '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>'),
+    title: 'Modo examen',
+    desc:   'Bloquea todas las pestañas excepto las URLs que tú autorices.',
+    detail: 'Durante un examen, el navegador solo puede acceder a las URLs autorizadas por el tutor. El alumno no puede abrir nuevas pestañas ni sitios no permitidos.',
+    features: ['Allowlist de URLs configurable por sesión', 'Activación instantánea desde el panel', 'Bloqueo de apertura de nuevas pestañas', 'Registro de intentos de acceso no autorizado', 'Desactivación remota al finalizar el examen'],
+  },
+  {
+    icon:   I(22, '<path d="M18 20V10M12 20V4M6 20v-6"/>'),
+    iconLg: I(40, '<path d="M18 20V10M12 20V4M6 20v-6"/>'),
+    title: 'Informes semanales',
+    desc:   'La IA genera un PDF por alumno cada semana para el tutor.',
+    detail: 'Cada semana se genera automáticamente un informe en PDF con el resumen de actividad de cada alumno: sitios, búsquedas, tiempo en pantalla y alertas.',
+    features: ['PDF automático por alumno cada lunes', 'Resumen de categorías de contenido visitado', 'Gráficas de tiempo de uso semanal', 'Alertas de la semana incluidas con contexto', 'Envío automático al tutor por email'],
+  },
+  {
+    icon:   I(22, '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/>'),
+    iconLg: I(40, '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/>'),
+    title: 'Multi-centro',
+    desc:   'Gestiona varios colegios desde un único panel.',
+    detail: 'Administra múltiples centros o campus desde un único panel con jerarquía de permisos por nivel y facturación unificada.',
+    features: ['Estructura organización → centro → aula', 'Administradores independientes por centro', 'Dashboard global con vista de todos los centros', 'Informes agrupados por centro o red', 'Facturación unificada o separada por centro'],
+  },
+  {
+    icon:   I(22, '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>'),
+    iconLg: I(40, '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>'),
+    title: 'Config remota',
+    desc:   'Actualiza filtros y listas sin tocar físicamente ningún PC.',
+    detail: 'Actualiza las listas de filtrado, los horarios y las políticas de todos los dispositivos al instante desde el panel, sin desplazamientos al centro.',
+    features: ['Cambios aplicados en <5 segundos en todos los dispositivos', 'Listas de bloqueo y de acceso sincronizadas', 'Actualización del agente en silencio', 'Rollback de configuración con un clic', 'Historial de cambios con fecha y usuario'],
+  },
+  {
+    icon:   I(22, '<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>'),
+    iconLg: I(40, '<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>'),
+    title: 'Historial búsquedas',
+    desc:   'Captura lo que buscan en Google, YouTube y Bing con categorización IA.',
+    detail: 'PenwinSafe intercepta las consultas en los principales buscadores y las almacena categorizadas para revisión posterior por el tutor.',
+    features: ['Captura en Google, YouTube, Bing y más buscadores', 'Categorización automática con IA', 'Búsqueda y filtrado por alumno, fecha y categoría', 'Alertas automáticas por palabras clave configurables', 'Exportación del historial en CSV'],
+  },
+  {
+    icon:   I(22, '<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>'),
+    iconLg: I(40, '<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>'),
+    title: 'Alertas inmediatas',
+    desc:   'Notificación en segundos cuando se detecta contenido preocupante.',
+    detail: 'Cuando la IA detecta una búsqueda o visita preocupante, el tutor recibe una notificación en segundos con el contexto completo del incidente.',
+    features: ['Notificación push al tutor en menos de 10 segundos', 'Contexto: URL, búsqueda y categoría detectada', 'Niveles de severidad: aviso, alerta y urgente', 'Historial de alertas por alumno y período', 'Configuración de sensibilidad por categoría'],
+  },
 ]
 
 const steps = [
@@ -377,12 +498,12 @@ const steps = [
 
 const plans = [
   {
-    name: 'Básico', price: '2€', sub: 'Para centros pequeños',
+    name: 'Básico', price: '2,5€', sub: 'Para centros pequeños',
     featured: false,
     features: ['Filtrado DNS PenwinSafe', 'Historial de URLs y búsquedas', 'Bloqueo remoto instantáneo', 'Hasta 30 dispositivos']
   },
   {
-    name: 'Escolar', price: '3€', sub: 'El más completo para colegios',
+    name: 'Escolar', price: '3,5€', sub: 'El más completo para colegios',
     featured: true,
     features: ['Todo el plan Básico', 'Vista en vivo WebRTC', 'Alertas IA en tiempo real', 'Horarios de acceso por aula', 'Modo examen', 'Informes semanales PDF', 'Dispositivos ilimitados']
   },
@@ -393,3 +514,34 @@ const plans = [
   },
 ]
 </script>
+
+<style scoped>
+/* ── Expand transition ───────────────────────────────── */
+.expand-enter-active { overflow:hidden; transition:max-height .7s cubic-bezier(.22,1,.36,1), opacity .5s .05s cubic-bezier(.22,1,.36,1); }
+.expand-leave-active { overflow:hidden; transition:max-height .45s cubic-bezier(.4,0,1,1), opacity .25s; }
+.expand-enter-from, .expand-leave-to { max-height:0; opacity:0; }
+.expand-enter-to, .expand-leave-from { max-height:800px; opacity:1; }
+
+/* ── Panel layout ─────────────────────────────────────── */
+.feat-panel-inner { display:grid; grid-template-columns:1fr 1fr; align-items:stretch; }
+.feat-col-left  { background:rgba(255,255,255,0.03); padding:56px 48px; border-right:1px solid rgba(255,255,255,0.06); }
+.feat-col-right { padding:56px 48px; }
+
+/* ── Feature stagger ─────────────────────────────────── */
+.feat-item {
+  display:flex; align-items:flex-start; gap:14px;
+  padding:13px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+  opacity:0; transform:translateX(12px);
+  animation:featIn .5s cubic-bezier(.22,1,.36,1) forwards;
+}
+.feat-item:last-child { border-bottom:none; }
+@keyframes featIn { to { opacity:1; transform:none; } }
+.feat-check { width:18px; height:18px; border-radius:50%; border:1.5px solid rgba(59,130,246,0.5); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media(max-width:768px) {
+  .feat-panel-inner { grid-template-columns:1fr; }
+  .feat-col-left  { padding:40px 20px; border-right:none; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .feat-col-right { padding:36px 20px; }
+}
+</style>
